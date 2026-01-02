@@ -1,0 +1,7 @@
+{
+  "name": "VelocityMetrics - Smart AI Running PWA",
+  "description": "A professional-grade running tracker and AI coaching platform that uses geolocation, real-time pace analysis, and Gemini-powered performance assessments.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
