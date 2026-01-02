@@ -1,4 +1,4 @@
-
+import { useAuth } from './context/AuthContext';
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { 
@@ -43,6 +43,8 @@ const VelocityLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 const App: React.FC = () => {
+  const { user, loading, loginWithGoogle, logout } = useAuth();
+  if (loading) return <div style={{color: '#00ffff', textAlign: 'center', marginTop: '200px'}}>Loading user...</div>;
   // Seeding with User-Provided Data Set for Performance Analysis
   const [runs, setRuns] = useState<Run[]>(() => {
     const saved = localStorage.getItem('velocity_runs');
@@ -151,7 +153,64 @@ const App: React.FC = () => {
           </div>
           <div className="text-[10px] font-mono bg-slate-800 px-2 py-1 rounded text-slate-400 border border-slate-700">v1.4.0-quant</div>
         </header>
-
+      <div style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '20px',
+          fontFamily: 'inherit'
+        }}>
+          {user ? (
+            <>
+              <span style={{ color: '#00ffff', fontSize: '16px', fontWeight: 'bold' }}>
+                Hello, {user.displayName || user.email?.split('@')[0]}
+              </span>
+              <button
+                onClick={logout}
+                style={{
+                  background: 'transparent',
+                  border: '2px solid #00ffff',
+                  color: '#00ffff',
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 0 15px rgba(0, 255, 255, 0.4)',
+                  transition: 'all 0.3s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 255, 255, 0.7)'}
+                onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 255, 0.4)'}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              style={{
+                background: 'transparent',
+                border: '2px solid #00ffff',
+                color: '#00ffff',
+                padding: '10px 20px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                boxShadow: '0 0 15px rgba(0, 255, 255, 0.4)',
+                transition: 'all 0.3s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 0 25px rgba(0, 255, 255, 0.7)'}
+              onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 255, 0.4)'}
+            >
+              Sign in with Google
+            </button>
+          )}
+        </div>
+        
         <nav className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-20 bg-slate-950 border-r border-slate-800 py-8 items-center gap-8 z-50">
           <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-cyan-500/10 hover:scale-105 transition-transform cursor-pointer">
             <VelocityLogo className="text-slate-900 w-7 h-7" />
