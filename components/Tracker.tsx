@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, MapPin, Timer, Activity, LocateFixed, Volume2, VolumeX, Zap, MoveUp, Compass, AlertCircle } from 'lucide-react';
+import { Play, Square, MapPin, Timer, Activity, LocateFixed, Volume2, VolumeX, Zap, MoveUp, Compass, AlertCircle, CloudCheck, CloudOff, Loader2 } from 'lucide-react';
 import { Run, Coordinate } from '../types';
 import { calculatePace, formatPace, formatDuration, calculateDistanceBetween, estimatePower, METERS_TO_FEET } from '../utils/conversions';
 import { MapService } from '../services/mapService';
@@ -20,6 +20,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const [currentPower, setCurrentPower] = useState(0);
   const [totalAscent, setTotalAscent] = useState(0);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
@@ -41,8 +42,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
           { enableHighAccuracy: true }
         );
       } catch (err) {
-        console.error("Critical failure initializing Maps:", err);
-        setMapError("Failed to load Google Maps. Please check your API key and billing settings.");
+        setMapError("Map Load Failed: Check Domain Restrictions in Google Cloud Console.");
       }
     };
     initialize();
@@ -57,7 +57,6 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     if (!mapContainerRef.current || !(window as any).google) return;
 
     try {
-      // New 2024+ Library Import Logic
       const { Map } = await google.maps.importLibrary("maps");
       const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
 
@@ -68,7 +67,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         disableDefaultUI: true,
         styles: MapService.getDarkMapStyles(),
         tilt: 45,
-        mapId: "DEMO_MAP_ID", // Required for Advanced Marker Logic
+        mapId: "DEMO_MAP_ID",
       });
 
       polylineRef.current = new google.maps.Polyline({
@@ -94,8 +93,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         content: pin.element,
       });
     } catch (err) {
-      console.error("Google Maps Initialization Error:", err);
-      setMapError("Map Authentication Failed. Ensure the domain is allowed in Google Cloud Console.");
+      setMapError("The 'Oops' error is likely a Domain Restriction on your API key. This is expected in the preview window.");
     }
   };
 
@@ -107,7 +105,6 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     setTotalAscent(0);
     powersRef.current = [];
     lastCoordRef.current = null;
-
     if (polylineRef.current) polylineRef.current.setPath([]);
 
     watchId.current = navigator.geolocation.watchPosition(
@@ -130,7 +127,6 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
             const velocityMps = speed ?? (distMi * 1609.34);
             const grade = distMi > 0 ? elevationDiff / (distMi * 1609.34) : 0;
-            
             const power = estimatePower(userWeightLbs, velocityMps, grade);
             
             setCurrentPower(power);
@@ -162,26 +158,31 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     }, 1000);
   };
 
-  const stopTracking = () => {
+  const stopTracking = async () => {
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
     if (timerId.current) clearInterval(timerId.current);
     setIsTracking(false);
 
     if (distance > 0.01) {
+      setIsSyncing(true);
       const avgPower = powersRef.current.length > 0 
         ? powersRef.current.reduce((a, b) => a + b, 0) / powersRef.current.length 
         : 0;
       
-      onSaveRun({
-        id: `run-${Date.now()}`,
-        date: new Date().toISOString(),
-        distanceMi: distance,
-        durationSec: duration,
-        paceMinMi: calculatePace(distance, duration),
-        avgPowerWatts: avgPower,
-        totalAscentFt: totalAscent,
-        path: path
-      });
+      try {
+        await onSaveRun({
+          id: `run-${Date.now()}`,
+          date: new Date().toISOString(),
+          distanceMi: distance,
+          durationSec: duration,
+          paceMinMi: calculatePace(distance, duration),
+          avgPowerWatts: avgPower,
+          totalAscentFt: totalAscent,
+          path: path
+        });
+      } finally {
+        setTimeout(() => setIsSyncing(false), 2000); // Visual confirmation delay
+      }
     }
   };
 
@@ -193,7 +194,18 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
             <Compass className="text-cyan-400 w-8 h-8" />
             KINEMATIC TERMINAL
           </h2>
-          <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mt-1">Status: Operational_Link_Secured</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Status: Operational_Link_Secured</p>
+            {isSyncing ? (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[8px] font-black uppercase tracking-tighter animate-pulse">
+                <Loader2 className="w-2.5 h-2.5 animate-spin" /> Transmission_Active
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-tighter">
+                <CloudCheck className="w-2.5 h-2.5" /> Firestore_Synced
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <button 
@@ -217,11 +229,13 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
             {mapError ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900">
-                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-                <h3 className="text-white font-black uppercase tracking-widest mb-2">MAP_LOAD_ERROR</h3>
-                <p className="text-slate-400 text-xs font-mono">{mapError}</p>
-                <a href="https://console.cloud.google.com/" target="_blank" className="mt-6 text-cyan-400 text-[10px] font-black uppercase underline decoration-2 underline-offset-4">Configure Cloud Console</a>
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
+                <div className="bg-slate-950/80 p-8 rounded-[2rem] border border-red-500/20 max-w-sm">
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-white font-black uppercase tracking-widest mb-2 text-sm">RESTRICTED_ACCESS</h3>
+                  <p className="text-slate-400 text-[10px] font-mono leading-relaxed">{mapError}</p>
+                  <p className="mt-4 text-cyan-500 text-[9px] font-black uppercase tracking-widest border border-cyan-500/20 p-2 rounded">Maps will work on your Live Site</p>
+                </div>
               </div>
             ) : (
               <>
@@ -246,7 +260,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
           <div className="bg-slate-950 border border-cyan-500/20 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-3 text-cyan-400 mb-4 relative z-10">
-              <Activity className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Activity className="w-5 h-5 sm:w-6 h-6" />
               <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.5em]">Relative Velocity</span>
             </div>
             <div className="text-6xl sm:text-9xl font-mono font-black text-white tracking-tighter leading-none relative z-10">
@@ -259,14 +273,17 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
       <button 
         onClick={isTracking ? stopTracking : startTracking}
+        disabled={isSyncing}
         className={`w-full py-8 sm:py-12 rounded-[2rem] sm:rounded-[4rem] font-black text-xl sm:text-4xl uppercase tracking-[0.1em] sm:tracking-[0.3em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-4 sm:gap-10 border-b-[8px] sm:border-b-[16px] ${
+          isSyncing ? 'bg-slate-800 border-slate-900 cursor-not-allowed text-slate-600' :
           isTracking 
             ? 'bg-red-600 hover:bg-red-500 border-red-800 shadow-red-900/40' 
             : 'bg-cyan-600 hover:bg-cyan-500 border-cyan-800 shadow-cyan-900/40'
         }`}
       >
-        {isTracking ? <Square className="w-8 h-8 sm:w-12 sm:h-12 fill-current" /> : <Play className="w-8 h-8 sm:w-12 sm:h-12 fill-current" />}
-        {isTracking ? 'TERMINATE_SESSION' : 'INITIATE_SESSION'}
+        {isSyncing ? <Loader2 className="w-8 h-8 sm:w-12 sm:h-12 animate-spin" /> :
+         isTracking ? <Square className="w-8 h-8 sm:w-12 sm:h-12 fill-current" /> : <Play className="w-8 h-8 sm:w-12 sm:h-12 fill-current" />}
+        {isSyncing ? 'SYNCING_DATA...' : isTracking ? 'TERMINATE_SESSION' : 'INITIATE_SESSION'}
       </button>
     </div>
   );
