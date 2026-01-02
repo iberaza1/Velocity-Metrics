@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, MapPin, Timer, Activity, LocateFixed, Volume2, VolumeX, Zap, MoveUp, Compass } from 'lucide-react';
+import { Play, Square, MapPin, Timer, Activity, LocateFixed, Volume2, VolumeX, Zap, MoveUp, Compass, AlertCircle } from 'lucide-react';
 import { Run, Coordinate } from '../types';
 import { calculatePace, formatPace, formatDuration, calculateDistanceBetween, estimatePower, METERS_TO_FEET } from '../utils/conversions';
 import { MapService } from '../services/mapService';
@@ -19,6 +19,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [currentPower, setCurrentPower] = useState(0);
   const [totalAscent, setTotalAscent] = useState(0);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
@@ -41,6 +42,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         );
       } catch (err) {
         console.error("Critical failure initializing Maps:", err);
+        setMapError("Failed to load Google Maps. Please check your API key and billing settings.");
       }
     };
     initialize();
@@ -54,43 +56,47 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const initMap = async (lat: number, lng: number) => {
     if (!mapContainerRef.current || !(window as any).google) return;
 
-    // New 2024+ Library Import Logic
-    const { Map } = await google.maps.importLibrary("maps");
-    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+    try {
+      // New 2024+ Library Import Logic
+      const { Map } = await google.maps.importLibrary("maps");
+      const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
 
-    googleMapRef.current = new Map(mapContainerRef.current, {
-      center: { lat, lng },
-      zoom: 17,
-      mapTypeId: 'terrain',
-      disableDefaultUI: true,
-      styles: MapService.getDarkMapStyles(),
-      tilt: 45,
-      mapId: "DEMO_MAP_ID", // Required for Advanced Marker Logic
-    });
+      googleMapRef.current = new Map(mapContainerRef.current, {
+        center: { lat, lng },
+        zoom: 17,
+        mapTypeId: 'terrain',
+        disableDefaultUI: true,
+        styles: MapService.getDarkMapStyles(),
+        tilt: 45,
+        mapId: "DEMO_MAP_ID", // Required for Advanced Marker Logic
+      });
 
-    polylineRef.current = new google.maps.Polyline({
-      path: [],
-      geodesic: true,
-      strokeColor: '#22d3ee',
-      strokeOpacity: 0.9,
-      strokeWeight: 6,
-      map: googleMapRef.current
-    });
+      polylineRef.current = new google.maps.Polyline({
+        path: [],
+        geodesic: true,
+        strokeColor: '#22d3ee',
+        strokeOpacity: 0.9,
+        strokeWeight: 6,
+        map: googleMapRef.current
+      });
 
-    // Customizing the Advanced Marker Pin for a high-tech look
-    const pin = new PinElement({
-      background: "#0891b2",
-      borderColor: "#ffffff",
-      glyphColor: "#ffffff",
-      scale: 1.2
-    });
+      const pin = new PinElement({
+        background: "#0891b2",
+        borderColor: "#ffffff",
+        glyphColor: "#ffffff",
+        scale: 1.2
+      });
 
-    markerRef.current = new AdvancedMarkerElement({
-      position: { lat, lng },
-      map: googleMapRef.current,
-      title: "Runner Position",
-      content: pin.element,
-    });
+      markerRef.current = new AdvancedMarkerElement({
+        position: { lat, lng },
+        map: googleMapRef.current,
+        title: "Runner Position",
+        content: pin.element,
+      });
+    } catch (err) {
+      console.error("Google Maps Initialization Error:", err);
+      setMapError("Map Authentication Failed. Ensure the domain is allowed in Google Cloud Console.");
+    }
   };
 
   const startTracking = () => {
@@ -111,7 +117,6 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         
         if (googleMapRef.current && markerRef.current) {
           const latLng = { lat, lng };
-          // For AdvancedMarkerElement, updating .position directly is the standard
           markerRef.current.position = latLng;
           googleMapRef.current.panTo(latLng);
         }
@@ -211,16 +216,26 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
-            <div ref={mapContainerRef} className="absolute inset-0 z-0" />
-            
-            <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
-              <div className="bg-slate-950/80 backdrop-blur-2xl border border-white/5 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-2xl">
-                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_12px_cyan]" />
-                <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.4em]">SPS_Terrain_Matrix_v5.0</span>
+            {mapError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900">
+                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                <h3 className="text-white font-black uppercase tracking-widest mb-2">MAP_LOAD_ERROR</h3>
+                <p className="text-slate-400 text-xs font-mono">{mapError}</p>
+                <a href="https://console.cloud.google.com/" target="_blank" className="mt-6 text-cyan-400 text-[10px] font-black uppercase underline decoration-2 underline-offset-4">Configure Cloud Console</a>
               </div>
-            </div>
+            ) : (
+              <>
+                <div ref={mapContainerRef} className="absolute inset-0 z-0" />
+                <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
+                  <div className="bg-slate-950/80 backdrop-blur-2xl border border-white/5 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-2xl">
+                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_12px_cyan]" />
+                    <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.4em]">SPS_Terrain_Matrix_v5.0</span>
+                  </div>
+                </div>
+              </>
+            )}
             
-            {!isTracking && !path.length && (
+            {!isTracking && !path.length && !mapError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-[2px] pointer-events-none">
                  <LocateFixed className="w-12 h-12 sm:w-16 sm:h-16 text-slate-800 mb-4 animate-pulse" />
                  <p className="font-black uppercase tracking-[0.6em] sm:tracking-[0.8em] text-[9px] sm:text-[10px] text-slate-700">Awaiting_Kinematic_Start</p>

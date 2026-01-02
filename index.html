@@ -7,6 +7,8 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Babel standalone to transpile TSX in the browser for zero-build deployment -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -20,15 +22,8 @@
     .font-mono {
       font-family: 'JetBrains+Mono', monospace;
     }
-    /* Hide scrollbar for Chrome, Safari and Opera */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    /* Hide scrollbar for IE, Edge and Firefox */
-    .no-scrollbar {
-      -ms-overflow-style: none;  /* IE and Edge */
-      scrollbar-width: none;  /* Firefox */
-    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 <script type="importmap">
 {
@@ -46,10 +41,12 @@
   }
 }
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyABpdVJFvudPJTf2UV7sYkbmlxPirebJ-A&callback=initMap"></script>
+<!-- Using project API Key: AIzaSyBd_3dUxlmARJ9lLsxrda475AZV7vwqJ3w -->
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBd_3dUxlmARJ9lLsxrda475AZV7vwqJ3w&callback=initMap"></script>
 </head>
 <body class="bg-slate-900">
   <div id="root"></div>
-  <script type="module" src="index.tsx"></script>
+  <!-- Load index.tsx as a Babel script to handle TSX transpilation -->
+  <script type="text/babel" data-type="module" src="index.tsx"></script>
 </body>
 </html>

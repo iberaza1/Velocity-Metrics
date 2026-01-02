@@ -1,5 +1,3 @@
 // config.ts
-// In Google AI Studio, we use this as a central source for your key.
-// When you deploy to Firebase, you will replace this with an environment variable.
-
-export const GOOGLE_MAPS_API_KEY = "AIzaSyABpdVJFvudPJTf2UV7sYkbmlxPirebJ-A";
+// Updated to match the Firebase project key for velocity-tracker-483022-t5
+export const GOOGLE_MAPS_API_KEY = "AIzaSyBd_3dUxlmARJ9lLsxrda475AZV7vwqJ3w";
