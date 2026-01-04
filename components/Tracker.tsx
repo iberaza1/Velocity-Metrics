@@ -229,7 +229,10 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
             
-            {/* TEMPORARY COMMENT OUT ERROR OVERALY TO TEST UI
+          {/* TEMPORARY: Fully commented out map error overlay to test UI/login/buttons. 
+          To revert: Remove the outer {/* and */} wrappers. */}
+
+          {/*
             {mapError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
                 <div className="bg-slate-950/80 p-8 rounded-[2rem] border border-red-500/20 max-w-sm">
@@ -239,8 +242,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
                   <p className="mt-4 text-cyan-500 text-[9px] font-black uppercase tracking-widest border border-cyan-500/20 p-2 rounded">Maps will work on your Live Site</p>
                 </div>
               </div>
-            ) : (
-            */}
+            ) : (    
               <>
                 <div ref={mapContainerRef} className="absolute inset-0 z-0" />
                 <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
@@ -251,7 +253,18 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
                 </div>
               </>
             )}
-            
+            */}
+
+            {/* Always show blank map container + label (no error overlay) */}
+            <>
+              <div ref={mapContainerRef} className="absolute inset-0 z-0" />
+              <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
+                <div className="bg-slate-950/80 backdrop-blur-2xl border border-white/5 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-2xl">
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_12px_cyan]" />
+                  <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.4em]">SPS_Terrain_Matrix_v5.0</span>
+                </div>
+              </div>
+            </>
             {!isTracking && !path.length && !mapError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-[2px] pointer-events-none">
                  <LocateFixed className="w-12 h-12 sm:w-16 sm:h-16 text-slate-800 mb-4 animate-pulse" />
