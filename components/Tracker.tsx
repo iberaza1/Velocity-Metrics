@@ -228,6 +228,8 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
+            
+            {/* TEMPORARY COMMENT OUT ERROR OVERALY TO TEST UI
             {mapError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
                 <div className="bg-slate-950/80 p-8 rounded-[2rem] border border-red-500/20 max-w-sm">
@@ -238,6 +240,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
                 </div>
               </div>
             ) : (
+            */}
               <>
                 <div ref={mapContainerRef} className="absolute inset-0 z-0" />
                 <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
