@@ -70,37 +70,57 @@ const App: React.FC = () => {
         console.error('Error loading runs from Firestore:', error);
         // Fallback to localStorage
         const saved = localStorage.getItem('velocity_runs');
-        if (saved) setRuns(JSON.parse(saved));
+        if (saved) {
+          setRuns(JSON.parse(saved));
+        } else {
+          // Add your original seed if empty
+          const initialDate = new Date();
+          initialDate.setDate(initialDate.getDate() - 3);
+          setRuns([
+            // Your original seed runs here (copy from old code)
+          ]);
+        }
       }
     } else {
-      // Not logged in: use localStorage
+      // Not logged in: load localStorage or seed
       const saved = localStorage.getItem('velocity_runs');
       if (saved) {
         setRuns(JSON.parse(saved));
+      } else {
+        // Seed data
+        const initialDate = new Date();
+        initialDate.setDate(initialDate.getDate() - 3);
+        setRuns([
+          // Your original seed runs
+        ]);
       }
     }
   };
 
   loadRuns();
-}, [user]); // Reload when login status changes
-  
-  const addRun = async (newRun: Run) => {
+}, [user]);
+
+const addRun = async (newRun: Run) => {
   const runWithTimestamp = {
     ...newRun,
-    timestamp: new Date().toISOString(), // For sorting
+    timestamp: new Date().toISOString(),
   };
 
   // Immediate local UI update
-  setRuns((prev) => [runWithTimestamp, ...prev]);
+  setRuns((prev) => {
+    const updatedRuns = [runWithTimestamp, ...prev];
+    // Save to localStorage immediately for fallback
+    localStorage.setItem('velocity_runs', JSON.stringify(updatedRuns));
+    return updatedRuns;
+  });
 
-  // Save to Firestore if logged in
   if (user) {
     try {
       const docRef = await addDoc(
         collection(db, `users/${user.uid}/runs`),
         runWithTimestamp
       );
-      // Optional: Update local run with real Firestore ID
+      // Update local with real Firestore ID
       setRuns((prev) =>
         prev.map((r) =>
           r.id === newRun.id ? { ...r, id: docRef.id } : r
@@ -109,9 +129,9 @@ const App: React.FC = () => {
       console.log('Run saved to Firestore:', docRef.id);
     } catch (error) {
       console.error('Error saving run to Firestore:', error);
-      // App continues with local data if offline/error
     }
   }
+};
 
   // Always fallback save to localStorage (for offline/no login)
   localStorage.setItem('velocity_runs', JSON.stringify(runs));
