@@ -14,6 +14,9 @@ import Coach from './components/Coach';
 import Goals from './components/Goals';
 import BeerTracker from './components/BeerTracker';
 import { Run, UserGoals, BeerLog } from './types';
+import { useAuth } from './context/AuthContext'; // For current user
+import { db } from './config'; // Your Firestore db instance
+import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
 
 const VelocityLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -23,10 +26,8 @@ const VelocityLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 const App: React.FC = () => {
-  const [runs, setRuns] = useState<Run[]>(() => {
-    const saved = localStorage.getItem('velocity_runs');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const { user } = useAuth(); // Get logged-in user (null if not logged in)
+  const [runs, setRuns] = useState<Run[]>([]);
 
   const [beerLogs, setBeerLogs] = useState<BeerLog[]>(() => {
     const saved = localStorage.getItem('velocity_beers');
@@ -50,9 +51,71 @@ const App: React.FC = () => {
     localStorage.setItem('velocity_goals', JSON.stringify(goals));
   }, [goals]);
 
-  const addRun = (newRun: Run) => {
-    setRuns(prev => [newRun, ...prev]);
+  useEffect(() => {
+  const loadRuns = async () => {
+    if (user) {
+      try {
+        const q = query(
+          collection(db, `users/${user.uid}/runs`),
+          orderBy('timestamp', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        const loadedRuns = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Run));
+        setRuns(loadedRuns);
+        console.log('Runs loaded from Firestore for user:', user.uid);
+      } catch (error) {
+        console.error('Error loading runs from Firestore:', error);
+        // Fallback to localStorage
+        const saved = localStorage.getItem('velocity_runs');
+        if (saved) setRuns(JSON.parse(saved));
+      }
+    } else {
+      // Not logged in: use localStorage
+      const saved = localStorage.getItem('velocity_runs');
+      if (saved) {
+        setRuns(JSON.parse(saved));
+      }
+    }
   };
+
+  loadRuns();
+}, [user]); // Reload when login status changes
+  
+  const addRun = async (newRun: Run) => {
+  const runWithTimestamp = {
+    ...newRun,
+    timestamp: new Date().toISOString(), // For sorting
+  };
+
+  // Immediate local UI update
+  setRuns((prev) => [runWithTimestamp, ...prev]);
+
+  // Save to Firestore if logged in
+  if (user) {
+    try {
+      const docRef = await addDoc(
+        collection(db, `users/${user.uid}/runs`),
+        runWithTimestamp
+      );
+      // Optional: Update local run with real Firestore ID
+      setRuns((prev) =>
+        prev.map((r) =>
+          r.id === newRun.id ? { ...r, id: docRef.id } : r
+        )
+      );
+      console.log('Run saved to Firestore:', docRef.id);
+    } catch (error) {
+      console.error('Error saving run to Firestore:', error);
+      // App continues with local data if offline/error
+    }
+  }
+
+  // Always fallback save to localStorage (for offline/no login)
+  localStorage.setItem('velocity_runs', JSON.stringify(runs));
+};
 
   const addBeer = (newBeer: BeerLog) => {
     setBeerLogs(prev => [newBeer, ...prev]);
