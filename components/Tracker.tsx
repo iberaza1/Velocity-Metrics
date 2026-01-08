@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, MapPin, Timer, Activity, LocateFixed, Volume2, VolumeX, Zap, MoveUp, Compass, AlertCircle, CloudCheck, CloudOff, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Square, MapPin, Timer, Activity, LocateFixed, Volume2, VolumeX, Zap, MoveUp, Compass, AlertCircle, ShieldAlert, Globe, Copy, Check, Info } from 'lucide-react';
 import { Run, Coordinate } from '../types';
 import { calculatePace, formatPace, formatDuration, calculateDistanceBetween, estimatePower, METERS_TO_FEET } from '../utils/conversions';
 import { MapService } from '../services/mapService';
@@ -11,6 +11,98 @@ interface TrackerProps {
   userWeightLbs: number;
 }
 
+/**
+ * Tactical Vector Canvas
+ * Renders GPS coordinates relative to the starting point when the Map API is restricted.
+ */
+const KinematicCanvas: React.FC<{ path: Coordinate[], isTracking: boolean }> = ({ path, isTracking }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || path.length < 2) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear and setup
+    const w = canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+    const h = canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.clearRect(0, 0, w, h);
+
+    // Drawing Constants
+    const padding = 60;
+    const innerW = canvas.offsetWidth - padding * 2;
+    const innerH = canvas.offsetHeight - padding * 2;
+
+    // Calculate Bounds
+    const lats = path.map(p => p.lat);
+    const lngs = path.map(p => p.lng);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    
+    const latDiff = maxLat - minLat || 0.0001;
+    const lngDiff = maxLng - minLng || 0.0001;
+
+    // Scale Logic (preserve aspect ratio)
+    const scale = Math.min(innerW / lngDiff, innerH / latDiff);
+    const offsetX = (canvas.offsetWidth - lngDiff * scale) / 2;
+    const offsetY = (canvas.offsetHeight - latDiff * scale) / 2;
+
+    const project = (p: Coordinate) => ({
+      x: offsetX + (p.lng - minLng) * scale,
+      y: offsetY + (maxLat - p.lat) * scale // Invert Y for screen space
+    });
+
+    // Draw Grid
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < canvas.offsetWidth; i += 40) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.offsetHeight); ctx.stroke();
+    }
+    for (let i = 0; i < canvas.offsetHeight; i += 40) {
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.offsetWidth, i); ctx.stroke();
+    }
+
+    // Draw Path
+    ctx.beginPath();
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(34, 211, 238, 0.5)';
+
+    const start = project(path[0]);
+    ctx.moveTo(start.x, start.y);
+
+    path.forEach((p, i) => {
+      const pos = project(p);
+      ctx.lineTo(pos.x, pos.y);
+    });
+    ctx.stroke();
+
+    // Draw End Pulse
+    const end = project(path[path.length - 1]);
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#22d3ee';
+    ctx.beginPath();
+    ctx.arc(end.x, end.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+  }, [path]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ width: '100%', height: '100%' }}
+    />
+  );
+};
+
 const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const [isTracking, setIsTracking] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -19,8 +111,8 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [currentPower, setCurrentPower] = useState(0);
   const [totalAscent, setTotalAscent] = useState(0);
-  const [mapError, setMapError] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [mapBlocked, setMapBlocked] = useState(false);
+  const [showErrorHelp, setShowErrorHelp] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
@@ -33,6 +125,17 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const powersRef = useRef<number[]>([]);
 
   useEffect(() => {
+    // Advanced Detection for Blocked Map via specific console error types
+    const originalError = console.error;
+    console.error = (...args) => {
+      if (args[0]?.toString().includes("ApiTargetBlockedMapError")) {
+        setMapBlocked(true);
+      }
+      originalError.apply(console, args);
+    };
+
+    (window as any).gm_authFailure = () => setMapBlocked(true);
+
     const initialize = async () => {
       try {
         await MapService.load();
@@ -42,7 +145,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
           { enableHighAccuracy: true }
         );
       } catch (err) {
-        setMapError("Map Load Failed: Check Domain Restrictions in Google Cloud Console.");
+        setMapBlocked(true);
       }
     };
     initialize();
@@ -50,24 +153,21 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     return () => {
       if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
       if (timerId.current) clearInterval(timerId.current);
+      console.error = originalError;
     };
   }, []);
 
-  const initMap = async (lat: number, lng: number) => {
-    if (!mapContainerRef.current || !(window as any).google) return;
+  const initMap = (lat: number, lng: number) => {
+    if (!mapContainerRef.current || !(window as any).google || mapBlocked) return;
 
     try {
-      const { Map } = await google.maps.importLibrary("maps");
-      const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
-
-      googleMapRef.current = new Map(mapContainerRef.current, {
+      googleMapRef.current = new google.maps.Map(mapContainerRef.current, {
         center: { lat, lng },
         zoom: 17,
         mapTypeId: 'terrain',
         disableDefaultUI: true,
         styles: MapService.getDarkMapStyles(),
-        tilt: 45,
-        mapId: "DEMO_MAP_ID",
+        tilt: 45
       });
 
       polylineRef.current = new google.maps.Polyline({
@@ -79,21 +179,21 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         map: googleMapRef.current
       });
 
-      const pin = new PinElement({
-        background: "#0891b2",
-        borderColor: "#ffffff",
-        glyphColor: "#ffffff",
-        scale: 1.2
-      });
-
-      markerRef.current = new AdvancedMarkerElement({
+      markerRef.current = new google.maps.Marker({
         position: { lat, lng },
         map: googleMapRef.current,
-        title: "Runner Position",
-        content: pin.element,
+        title: "Current Position",
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#06b6d4',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+          scale: 8
+        }
       });
-    } catch (err) {
-      setMapError("The 'Oops' error is likely a Domain Restriction on your API key. This is expected in the preview window.");
+    } catch (e) {
+      setMapBlocked(true);
     }
   };
 
@@ -112,9 +212,9 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         const { latitude: lat, longitude: lng, altitude, speed } = pos.coords;
         const newCoord: Coordinate = { lat, lng, elevation: altitude ?? undefined };
         
-        if (googleMapRef.current && markerRef.current) {
-          const latLng = { lat, lng };
-          markerRef.current.position = latLng;
+        if (googleMapRef.current && markerRef.current && !mapBlocked) {
+          const latLng = new google.maps.LatLng(lat, lng);
+          markerRef.current.setPosition(latLng);
           googleMapRef.current.panTo(latLng);
         }
 
@@ -133,7 +233,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
             powersRef.current.push(power);
             setDistance(d => d + distMi);
 
-            if (polylineRef.current) {
+            if (polylineRef.current && !mapBlocked) {
               const polyPath = polylineRef.current.getPath();
               polyPath.push(new google.maps.LatLng(lat, lng));
             }
@@ -144,7 +244,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         } else {
           lastCoordRef.current = newCoord;
           setPath([newCoord]);
-          if (polylineRef.current) {
+          if (polylineRef.current && !mapBlocked) {
             polylineRef.current.getPath().push(new google.maps.LatLng(lat, lng));
           }
         }
@@ -158,31 +258,26 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     }, 1000);
   };
 
-  const stopTracking = async () => {
+  const stopTracking = () => {
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
     if (timerId.current) clearInterval(timerId.current);
     setIsTracking(false);
 
     if (distance > 0.01) {
-      setIsSyncing(true);
       const avgPower = powersRef.current.length > 0 
         ? powersRef.current.reduce((a, b) => a + b, 0) / powersRef.current.length 
         : 0;
       
-      try {
-        await onSaveRun({
-          id: `run-${Date.now()}`,
-          date: new Date().toISOString(),
-          distanceMi: distance,
-          durationSec: duration,
-          paceMinMi: calculatePace(distance, duration),
-          avgPowerWatts: avgPower,
-          totalAscentFt: totalAscent,
-          path: path
-        });
-      } finally {
-        setTimeout(() => setIsSyncing(false), 2000); // Visual confirmation delay
-      }
+      onSaveRun({
+        id: `run-${Date.now()}`,
+        date: new Date().toISOString(),
+        distanceMi: distance,
+        durationSec: duration,
+        paceMinMi: calculatePace(distance, duration),
+        avgPowerWatts: avgPower,
+        totalAscentFt: totalAscent,
+        path: path
+      });
     }
   };
 
@@ -196,14 +291,10 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
           </h2>
           <div className="flex items-center gap-3 mt-1">
             <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Status: Operational_Link_Secured</p>
-            {isSyncing ? (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[8px] font-black uppercase tracking-tighter animate-pulse">
-                <Loader2 className="w-2.5 h-2.5 animate-spin" /> Transmission_Active
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-tighter">
-                <CloudCheck className="w-2.5 h-2.5" /> Firestore_Synced
-              </div>
+            {mapBlocked && (
+              <span className="flex items-center gap-1 text-[9px] font-black text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20 uppercase tracking-tighter animate-pulse">
+                <Activity size={10} /> Vector_Path_Simulation
+              </span>
             )}
           </div>
         </div>
@@ -227,45 +318,53 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         </div>
 
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
+          <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl transition-all duration-700">
+            {/* Base Layer: Map or Canvas */}
+            <div ref={mapContainerRef} className={`absolute inset-0 z-0 transition-opacity duration-1000 ${mapBlocked ? 'opacity-0' : 'opacity-100'}`} />
             
-          {/* TEMPORARY: Fully commented out map error overlay to test UI/login/buttons. 
-          To revert: Remove the outer {/* and */} wrappers. */}
-
-          {/*
-            {mapError ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
-                <div className="bg-slate-950/80 p-8 rounded-[2rem] border border-red-500/20 max-w-sm">
-                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="text-white font-black uppercase tracking-widest mb-2 text-sm">RESTRICTED_ACCESS</h3>
-                  <p className="text-slate-400 text-[10px] font-mono leading-relaxed">{mapError}</p>
-                  <p className="mt-4 text-cyan-500 text-[9px] font-black uppercase tracking-widest border border-cyan-500/20 p-2 rounded">Maps will work on your Live Site</p>
-                </div>
-              </div>
-            ) : (    
-              <>
-                <div ref={mapContainerRef} className="absolute inset-0 z-0" />
-                <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
-                  <div className="bg-slate-950/80 backdrop-blur-2xl border border-white/5 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-2xl">
-                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_12px_cyan]" />
-                    <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.4em]">SPS_Terrain_Matrix_v5.0</span>
-                  </div>
-                </div>
-              </>
+            {(mapBlocked || path.length > 0) && (
+              <KinematicCanvas path={path} isTracking={isTracking} />
             )}
-            */}
 
-            {/* Always show blank map container + label (no error overlay) */}
-            <>
-              <div ref={mapContainerRef} className="absolute inset-0 z-0" />
-              <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
-                <div className="bg-slate-950/80 backdrop-blur-2xl border border-white/5 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-2xl">
-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_12px_cyan]" />
-                  <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.4em]">SPS_Terrain_Matrix_v5.0</span>
+            {/* Tactical Overlays */}
+            <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-10">
+              <div className="bg-slate-950/80 backdrop-blur-2xl border border-white/5 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-3 sm:gap-4 shadow-2xl">
+                <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse shadow-[0_0_12px_cyan] ${mapBlocked ? 'bg-amber-500' : 'bg-cyan-500'}`} />
+                <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.4em]">SPS_TERRAIN_MATRIX_V5.0</span>
+              </div>
+            </div>
+
+            {mapBlocked && !showErrorHelp && (
+              <button 
+                onClick={() => setShowErrorHelp(true)}
+                className="absolute top-6 right-6 z-10 bg-slate-900/90 border border-amber-500/20 px-3 py-1.5 rounded-xl flex items-center gap-2 text-[9px] font-black text-amber-500 uppercase tracking-widest hover:bg-slate-800 transition-colors"
+              >
+                <Info size={12} /> RESTRICTED_KEY_FIX
+              </button>
+            )}
+
+            {showErrorHelp && (
+              <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in zoom-in-95">
+                <div className="max-w-xs text-center space-y-4">
+                  <Globe className="w-12 h-12 text-amber-500 mx-auto mb-2" />
+                  <h4 className="text-white font-black uppercase text-xs tracking-widest">Map Authentication Error</h4>
+                  <p className="text-slate-400 text-[10px] font-mono leading-relaxed">
+                    Your Google Maps API key has domain restrictions. To see the map here, add your preview origin to the allowed list in Google Cloud Console.
+                  </p>
+                  <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl font-mono text-[9px] text-cyan-400 break-all">
+                    {window.location.origin}/*
+                  </div>
+                  <button 
+                    onClick={() => setShowErrorHelp(false)}
+                    className="w-full py-3 bg-slate-800 rounded-xl text-[10px] font-black text-white uppercase tracking-widest border border-slate-700 hover:bg-slate-700 transition-colors"
+                  >
+                    Dismiss & Use Simulation
+                  </button>
                 </div>
               </div>
-            </>
-            {!isTracking && !path.length && !mapError && (
+            )}
+            
+            {!isTracking && !path.length && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-[2px] pointer-events-none">
                  <LocateFixed className="w-12 h-12 sm:w-16 sm:h-16 text-slate-800 mb-4 animate-pulse" />
                  <p className="font-black uppercase tracking-[0.6em] sm:tracking-[0.8em] text-[9px] sm:text-[10px] text-slate-700">Awaiting_Kinematic_Start</p>
@@ -289,17 +388,14 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
       <button 
         onClick={isTracking ? stopTracking : startTracking}
-        disabled={isSyncing}
         className={`w-full py-8 sm:py-12 rounded-[2rem] sm:rounded-[4rem] font-black text-xl sm:text-4xl uppercase tracking-[0.1em] sm:tracking-[0.3em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-4 sm:gap-10 border-b-[8px] sm:border-b-[16px] ${
-          isSyncing ? 'bg-slate-800 border-slate-900 cursor-not-allowed text-slate-600' :
           isTracking 
             ? 'bg-red-600 hover:bg-red-500 border-red-800 shadow-red-900/40' 
             : 'bg-cyan-600 hover:bg-cyan-500 border-cyan-800 shadow-cyan-900/40'
         }`}
       >
-        {isSyncing ? <Loader2 className="w-8 h-8 sm:w-12 sm:h-12 animate-spin" /> :
-         isTracking ? <Square className="w-8 h-8 sm:w-12 sm:h-12 fill-current" /> : <Play className="w-8 h-8 sm:w-12 sm:h-12 fill-current" />}
-        {isSyncing ? 'SYNCING_DATA...' : isTracking ? 'TERMINATE_SESSION' : 'INITIATE_SESSION'}
+        {isTracking ? <Square className="w-8 h-8 sm:w-12 sm:h-12 fill-current" /> : <Play className="w-8 h-8 sm:w-12 sm:h-12 fill-current" />}
+        {isTracking ? 'TERMINATE_SESSION' : 'INITIATE_SESSION'}
       </button>
     </div>
   );

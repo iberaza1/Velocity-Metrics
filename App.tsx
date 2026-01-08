@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { 
@@ -16,106 +15,22 @@ import Goals from './components/Goals';
 import BeerTracker from './components/BeerTracker';
 import { Run, UserGoals, BeerLog } from './types';
 
-// Modern Velocity Logo Component
 const VelocityLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    xmlns="http://www.w3.org/2000/svg" 
-    className={className}
-  >
-    <path 
-      d="M4 6L10 18L13 12" 
-      stroke="currentColor" 
-      strokeWidth="3.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-    />
-    <path 
-      d="M12 6L18 18L21 12" 
-      stroke="currentColor" 
-      strokeWidth="3.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      opacity="0.5"
-    />
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M4 6L10 18L13 12" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12 6L18 18L21 12" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
   </svg>
 );
 
 const App: React.FC = () => {
-  // Seeding with User-Provided Data Set for Performance Analysis
   const [runs, setRuns] = useState<Run[]>(() => {
     const saved = localStorage.getItem('velocity_runs');
-    if (saved) return JSON.parse(saved);
-    
-    const initialDate = new Date();
-    initialDate.setDate(initialDate.getDate() - 3);
-    
-    return [
-      {
-        id: 'run-3',
-        date: new Date(initialDate.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        distanceMi: 4.8,
-        durationSec: 2635,
-        paceMinMi: 9.15,
-        avgPowerWatts: 245,
-        totalAscentFt: 45,
-        path: []
-      },
-      {
-        id: 'run-2',
-        date: new Date(initialDate.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-        distanceMi: 5.2,
-        durationSec: 2636,
-        paceMinMi: 8.45,
-        avgPowerWatts: 280,
-        totalAscentFt: 60,
-        path: []
-      },
-      {
-        id: 'run-1',
-        date: initialDate.toISOString(),
-        distanceMi: 5.0,
-        durationSec: 2550,
-        paceMinMi: 8.5,
-        avgPowerWatts: 275,
-        totalAscentFt: 50,
-        path: []
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [beerLogs, setBeerLogs] = useState<BeerLog[]>(() => {
     const saved = localStorage.getItem('velocity_beers');
-    if (saved) return JSON.parse(saved);
-
-    const initialDate = new Date();
-    initialDate.setDate(initialDate.getDate() - 3);
-
-    return [
-      {
-        id: 'beer-2',
-        date: new Date(initialDate.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-        name: "High-ABV Imperial IPA",
-        type: "Consumable",
-        abv: 8.5,
-        calories: 900,
-        carbs: 45,
-        volumeOz: 24,
-        timing: 'day_before'
-      },
-      {
-        id: 'beer-1',
-        date: initialDate.toISOString(),
-        name: "Craft IPA",
-        type: "Consumable",
-        abv: 7.2,
-        calories: 650,
-        carbs: 32,
-        volumeOz: 16,
-        timing: 'day_before'
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [goals, setGoals] = useState<UserGoals>(() => {
@@ -135,9 +50,21 @@ const App: React.FC = () => {
     localStorage.setItem('velocity_goals', JSON.stringify(goals));
   }, [goals]);
 
-  const addRun = (newRun: Run) => setRuns(prev => [newRun, ...prev]);
-  const addBeer = (newBeer: BeerLog) => setBeerLogs(prev => [newBeer, ...prev]);
-  const removeBeer = (id: string) => setBeerLogs(prev => prev.filter(b => b.id !== id));
+  const addRun = (newRun: Run) => {
+    setRuns(prev => [newRun, ...prev]);
+  };
+
+  const addBeer = (newBeer: BeerLog) => {
+    setBeerLogs(prev => [newBeer, ...prev]);
+  };
+
+  const removeBeer = (id: string) => {
+    setBeerLogs(prev => prev.filter(b => b.id !== id));
+  };
+
+  const updateGoals = (newGoals: UserGoals) => {
+    setGoals(newGoals);
+  };
 
   return (
     <HashRouter>
@@ -149,7 +76,6 @@ const App: React.FC = () => {
             </div>
             <h1 className="font-black text-xl tracking-tighter text-cyan-400">Velocity<span className="text-white">Metrics</span></h1>
           </div>
-          <div className="text-[10px] font-mono bg-slate-800 px-2 py-1 rounded text-slate-400 border border-slate-700">v1.4.0-quant</div>
         </header>
 
         <nav className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-20 bg-slate-950 border-r border-slate-800 py-8 items-center gap-8 z-50">
@@ -169,7 +95,7 @@ const App: React.FC = () => {
             <Route path="/history" element={<Dashboard runs={runs} />} />
             <Route path="/beer" element={<BeerTracker logs={beerLogs} runs={runs} onAddLog={addBeer} onRemoveLog={removeBeer} />} />
             <Route path="/coach" element={<Coach runs={runs} beerLogs={beerLogs} goals={goals} />} />
-            <Route path="/goals" element={<Goals runs={runs} goals={goals} onUpdateGoals={setGoals} />} />
+            <Route path="/goals" element={<Goals runs={runs} goals={goals} onUpdateGoals={updateGoals} />} />
           </Routes>
         </main>
 
