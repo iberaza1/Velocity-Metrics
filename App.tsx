@@ -15,7 +15,7 @@ import Goals from './components/Goals';
 import BeerTracker from './components/BeerTracker';
 import { Run, UserGoals, BeerLog } from './types';
 import { useAuth } from './context/AuthContext'; // For current user
-import { db } from './config'; // Your Firestore db instance
+import { db } from './Firebase'; // Your Firestore db instance
 import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
 
 const VelocityLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
