@@ -100,42 +100,38 @@ const App: React.FC = () => {
   loadRuns();
 }, [user]);
 
-const addRun = async (newRun: Run) => {
-  const runWithTimestamp = {
-    ...newRun,
-    timestamp: new Date().toISOString(),
-  };
+  const addRun = async (newRun: Run) => {
+    const runWithTimestamp = {
+      ...newRun,
+      timestamp: new Date().toISOString(),
+    };
 
-  // Immediate local UI update
-  setRuns((prev) => {
-    const updatedRuns = [runWithTimestamp, ...prev];
-    // Save to localStorage immediately for fallback
-    localStorage.setItem('velocity_runs', JSON.stringify(updatedRuns));
-    return updatedRuns;
-  });
+    // Update local state + save to localStorage immediately (using updated array)
+    setRuns((prev) => {
+      const updatedRuns = [runWithTimestamp, ...prev];
+      localStorage.setItem('velocity_runs', JSON.stringify(updatedRuns));
+      return updatedRuns;
+    });
 
-  if (user) {
-    try {
-      const docRef = await addDoc(
-        collection(db, `users/${user.uid}/runs`),
-        runWithTimestamp
-      );
-      // Update local with real Firestore ID
-      setRuns((prev) =>
-        prev.map((r) =>
-          r.id === newRun.id ? { ...r, id: docRef.id } : r
-        )
-      );
-      console.log('Run saved to Firestore:', docRef.id);
-    } catch (error) {
-      console.error('Error saving run to Firestore:', error);
+    if (user) {
+      try {
+        const docRef = await addDoc(
+          collection(db, `users/${user.uid}/runs`),
+          runWithTimestamp
+        );
+        // Update local with real Firestore ID
+        setRuns((prev) =>
+          prev.map((r) =>
+            r.id === newRun.id ? { ...r, id: docRef.id } : r
+          )
+        );
+        console.log('Run saved to Firestore:', docRef.id);
+      } catch (error) {
+        console.error('Error saving run to Firestore:', error);
+        // Offline/error: local already saved above
+      }
     }
-  }
-};
-
-  // Always fallback save to localStorage (for offline/no login)
-  localStorage.setItem('velocity_runs', JSON.stringify(runs));
-};
+  };
 
   const addBeer = (newBeer: BeerLog) => {
     setBeerLogs(prev => [newBeer, ...prev]);
