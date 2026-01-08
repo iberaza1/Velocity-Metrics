@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'; // NEW: For login
 
 /**
  * FIREBASE CONFIGURATION
@@ -15,4 +16,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Export for cloud saves (runs)
 export const db = getFirestore(app);
+
+// NEW: Export for Google login
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
