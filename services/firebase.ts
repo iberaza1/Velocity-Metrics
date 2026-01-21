@@ -7,7 +7,7 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth'; // NEW: For login
  * Successfully integrated with velocity-tracker-483022-t5
  */
 const firebaseConfig = {
-  apiKey: "AIzaSyABpdVJFvudPJTf2UV7sYkbmlxPirebJ-A",
+  apiKey: "AIzaSyBd_3dUxlmARJ9lLsxrda475AZV7vwqJ3w",
   authDomain: "velocity-tracker-483022-t5.firebaseapp.com",
   projectId: "velocity-tracker-483022-t5",
   storageBucket: "velocity-tracker-483022-t5.firebasestorage.app",
