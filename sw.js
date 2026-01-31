@@ -3,16 +3,7 @@ const CACHE_NAME = 'velocity-v3-swr';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json',
-  './index.tsx',
-  './App.tsx',
-  './types.ts',
-  './utils/conversions.ts',
-  './services/geminiService.ts',
-  './components/Tracker.tsx',
-  './components/Dashboard.tsx',
-  './components/Coach.tsx',
-  './components/Goals.tsx'
+  './manifest.json'
 ];
 
 // Install Event: Cache the application shell immediately
