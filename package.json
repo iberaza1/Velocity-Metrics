@@ -11,12 +11,14 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@google/genai": "^1.39.0",
     "@vis.gl/react-google-maps": "^1.7.1",
     "firebase": "^12.8.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@types/node": "^25.1.0",

@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo } from 'react';
-import { 
-  Beer, Plus, Minus, Trash2, Droplets, Zap, Flame, GlassWater, 
+import {
+  Beer, Plus, Minus, Trash2, Droplets, Zap, Flame, GlassWater,
   Clock, Calculator, Info, Activity, TrendingUp, FlaskConical, Beaker,
   ChevronRight, History
 } from 'lucide-react';
-import { 
-  ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, 
-  Cell, ResponsiveContainer, CartesianGrid 
+import {
+  ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip,
+  Cell, ResponsiveContainer, CartesianGrid
 } from 'recharts';
 import { BeerLog, Run } from '../types';
 
@@ -63,23 +63,23 @@ const BeerPerformanceChart: React.FC<{ data: any[] }> = ({ data }) => {
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-            <XAxis 
-              type="number" 
-              dataKey="beer_calories" 
-              name="Prior Day Calories" 
-              unit="kcal" 
-              stroke="#475569" 
+            <XAxis
+              type="number"
+              dataKey="beer_calories"
+              name="Prior Day Calories"
+              unit="kcal"
+              stroke="#475569"
               fontSize={10}
               tickLine={false}
               axisLine={false}
               fontFamily="JetBrains Mono"
             />
-            <YAxis 
-              type="number" 
-              dataKey="run_pace" 
-              name="Run Pace" 
-              unit="min/mi" 
-              stroke="#475569" 
+            <YAxis
+              type="number"
+              dataKey="run_pace"
+              name="Run Pace"
+              unit="min/mi"
+              stroke="#475569"
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -87,11 +87,11 @@ const BeerPerformanceChart: React.FC<{ data: any[] }> = ({ data }) => {
               fontFamily="JetBrains Mono"
             />
             <ZAxis type="number" dataKey="abv" range={[100, 600]} name="Peak ABV" />
-            <Tooltip 
-              cursor={{ strokeDasharray: '3 3', stroke: '#334155' }} 
-              contentStyle={{ 
-                backgroundColor: '#0f172a', 
-                border: '1px solid #1e293b', 
+            <Tooltip
+              cursor={{ strokeDasharray: '3 3', stroke: '#334155' }}
+              contentStyle={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
                 borderRadius: '12px',
                 fontSize: '11px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4)'
@@ -101,9 +101,9 @@ const BeerPerformanceChart: React.FC<{ data: any[] }> = ({ data }) => {
             />
             <Scatter name="Runs" data={data}>
               {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={entry.abv > 7 ? '#ef4444' : '#06b6d4'} 
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.abv > 7 ? '#ef4444' : '#06b6d4'}
                   fillOpacity={0.6}
                   stroke={entry.abv > 7 ? '#ef4444' : '#06b6d4'}
                   strokeWidth={2}
@@ -113,11 +113,11 @@ const BeerPerformanceChart: React.FC<{ data: any[] }> = ({ data }) => {
           </ScatterChart>
         </ResponsiveContainer>
       </div>
-      
+
       <div className="mt-6 flex flex-wrap gap-6 text-[10px] font-mono font-bold uppercase tracking-wider justify-center">
         <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 rounded-full border border-red-500/20">
           <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-          <span className="text-red-400">High ABV Performance Tax (>7%)</span>
+          <span className="text-red-400">High ABV Performance Tax (&gt;7%)</span>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 bg-cyan-500/10 rounded-full border border-cyan-500/20">
           <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]"></div>
@@ -154,10 +154,10 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
     const stats = BEER_LIBRARY[selectedBeerName as keyof typeof BEER_LIBRARY];
     const totalKcal = stats.kcal * quantity;
     const totalCarbs = stats.carbs * quantity;
-    
+
     // Physics: Ethanol Mass (g) = Volume (oz) * (ABV/100) * Ethanol Density (0.789) * 29.57
     const totalEthanol = (volume * (stats.abv / 100) * 0.789 * 29.57) * quantity;
-    const paceTax = (totalEthanol * 0.15).toFixed(1); 
+    const paceTax = (totalEthanol * 0.15).toFixed(1);
 
     return { kcal: totalKcal, carbs: totalCarbs, tax: paceTax };
   }, [selectedBeerName, quantity, volume]);
@@ -167,7 +167,7 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
     if (!selectedBeerName) return;
 
     const stats = BEER_LIBRARY[selectedBeerName as keyof typeof BEER_LIBRARY];
-    
+
     // We add logs in quantity for accurate history representation
     for (let i = 0; i < quantity; i++) {
       onAddLog({
@@ -209,7 +209,7 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-slate-900/60 border border-amber-500/20 p-8 rounded-[2.5rem] space-y-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
             <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/40" />
-            
+
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-500/10 rounded-lg">
@@ -229,11 +229,10 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
                 <button
                   key={bName}
                   onClick={() => setSelectedBeerName(bName)}
-                  className={`p-3 text-[10px] font-black rounded-xl border transition-all uppercase tracking-tighter text-left ${
-                    selectedBeerName === bName 
-                    ? 'bg-amber-600 border-amber-400 text-white shadow-[0_0_15px_rgba(217,119,6,0.2)]' 
-                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
-                  }`}
+                  className={`p-3 text-[10px] font-black rounded-xl border transition-all uppercase tracking-tighter text-left ${selectedBeerName === bName
+                      ? 'bg-amber-600 border-amber-400 text-white shadow-[0_0_15px_rgba(217,119,6,0.2)]'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}
                 >
                   {bName}
                 </button>
@@ -247,18 +246,18 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Batch Quantity</label>
                     <div className="flex items-center bg-slate-800 border border-slate-700 rounded-2xl p-1">
-                      <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-3 text-slate-400 hover:text-amber-500 transition-colors"><Minus size={16}/></button>
+                      <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-3 text-slate-400 hover:text-amber-500 transition-colors"><Minus size={16} /></button>
                       <span className="px-4 font-mono font-black text-lg text-white">{quantity}</span>
-                      <button type="button" onClick={() => setQuantity(quantity + 1)} className="p-3 text-slate-400 hover:text-amber-500 transition-colors"><Plus size={16}/></button>
+                      <button type="button" onClick={() => setQuantity(quantity + 1)} className="p-3 text-slate-400 hover:text-amber-500 transition-colors"><Plus size={16} /></button>
                     </div>
                   </div>
-                  
+
                   {/* Timing & Volume */}
                   <div className="flex-1 min-w-[150px] flex flex-col gap-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Temporal Lag</label>
-                        <select 
+                        <select
                           className="w-full bg-slate-800 border border-slate-700 p-4 rounded-2xl text-xs font-bold uppercase tracking-wider text-slate-200 outline-none focus:border-amber-500/50 cursor-pointer"
                           value={timing}
                           onChange={(e) => setTiming(e.target.value as any)}
@@ -269,8 +268,8 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Unit Vol (oz)</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={volume}
                           onChange={(e) => setVolume(Number(e.target.value))}
                           className="w-full bg-slate-800 border border-slate-700 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-amber-500/50"
@@ -301,11 +300,11 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
                   </div>
                 </div>
 
-                <button 
+                <button
                   type="submit"
                   className="w-full bg-amber-600 hover:bg-amber-500 text-white font-black py-5 rounded-[2rem] transition-all shadow-lg flex items-center justify-center gap-3 group active:scale-[0.98]"
                 >
-                  <Beer className="w-5 h-5 group-hover:rotate-12 transition-transform" /> 
+                  <Beer className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                   LOG {quantity} {selectedBeerName.toUpperCase()}
                 </button>
               </form>
@@ -339,8 +338,8 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                   <div className={`w-2 h-2 rounded-full ${log.timing === 'day_before' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} title={log.timing} />
-                   <button 
+                  <div className={`w-2 h-2 rounded-full ${log.timing === 'day_before' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} title={log.timing} />
+                  <button
                     onClick={() => onRemoveLog(log.id)}
                     className="p-3 text-slate-700 hover:text-red-400 rounded-xl transition-all hover:bg-red-500/10"
                     aria-label="Remove entry"

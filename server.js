@@ -19,8 +19,8 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  let filePath = '.' + req.url;
-  if (filePath === './') filePath = './index.html';
+  // Serve from 'dist' directory
+  let filePath = path.join(__dirname, 'dist', req.url === '/' ? 'index.html' : req.url);
 
   const extname = String(path.extname(filePath)).toLowerCase();
   const contentType = MIME_TYPES[extname] || 'application/octet-stream';
@@ -28,7 +28,13 @@ const server = http.createServer((req, res) => {
   fs.readFile(filePath, (error, content) => {
     if (error) {
       if (error.code === 'ENOENT') {
-        fs.readFile('./index.html', (err, indexContent) => {
+        // SPA Fallback: Serve index.html for unknown paths
+        fs.readFile(path.join(__dirname, 'dist', 'index.html'), (err, indexContent) => {
+          if (err) {
+            res.writeHead(500);
+            res.end('Error loading index.html: ' + err.code);
+            return;
+          }
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(indexContent, 'utf-8');
         });
