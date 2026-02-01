@@ -53,7 +53,7 @@ const Layout: React.FC = () => {
                     className="flex items-center gap-4 px-4 py-3 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
                 >
                     <LogOut size={20} />
-                    <span className="text-xs font-black tracking-widest">DISCONNECT</span>
+                    <span className="text-xs font-black tracking-widest">LOG OUT</span>
                 </button>
             </aside>
 
