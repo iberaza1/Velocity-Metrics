@@ -42,7 +42,7 @@ const KinematicCanvas: React.FC<{ path: Coordinate[], isTracking: boolean, isBlo
     const maxLat = Math.max(...lats);
     const minLng = Math.min(...lngs);
     const maxLng = Math.max(...lngs);
-    
+
     const latDiff = maxLat - minLat || 0.0001;
     const lngDiff = maxLng - minLng || 0.0001;
 
@@ -94,8 +94,8 @@ const KinematicCanvas: React.FC<{ path: Coordinate[], isTracking: boolean, isBlo
   }, [path, isBlocked]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <canvas
+      ref={canvasRef}
       className="absolute inset-0 w-full h-full pointer-events-none z-10"
       style={{ width: '100%', height: '100%' }}
     />
@@ -198,9 +198,9 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     powersRef.current = [];
     lastCoordRef.current = null;
     lastTimestampRef.current = Date.now();
-    
+
     if (polylineRef.current && !mapBlocked) {
-      try { polylineRef.current.setPath([]); } catch(e) {}
+      try { polylineRef.current.setPath([]); } catch (e) { }
     }
 
     setIsTracking(true);
@@ -225,7 +225,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
         setHasGpsFix(true);
         const newCoord: Coordinate = { lat, lng, elevation: altitude ?? undefined };
-        
+
         if (lastCoordRef.current) {
           const distMi = calculateDistanceBetween(lastCoordRef.current.lat, lastCoordRef.current.lng, lat, lng);
           const timeDeltaSec = (now - lastTimestampRef.current) / 1000;
@@ -239,7 +239,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
             if (elevationDiff > 0) setTotalAscent(a => a + elevationDiff * METERS_TO_FEET);
             const velocityMps = speed ?? calculatedSpeed;
             const power = estimatePower(userWeightLbs, velocityMps, elevationDiff / (distMi * 1609.34 || 1));
-            
+
             setCurrentPower(power);
             powersRef.current.push(power);
             setDistance(d => d + distMi);
@@ -287,7 +287,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
   const stopTracking = () => {
     if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     if (timerId.current !== null) clearInterval(timerId.current);
-    
+
     const finalDistance = distance;
     const finalDuration = duration;
     const finalPath = path;
@@ -297,10 +297,10 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     setHasGpsFix(false);
 
     if (finalDistance > 0.01) {
-      const avgPower = powersRef.current.length > 0 
-        ? powersRef.current.reduce((a, b) => a + b, 0) / powersRef.current.length 
+      const avgPower = powersRef.current.length > 0
+        ? powersRef.current.reduce((a, b) => a + b, 0) / powersRef.current.length
         : 0;
-      
+
       onSaveRun({
         id: `run-${Date.now()}`,
         date: new Date().toISOString(),
@@ -330,12 +330,12 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
               LINK: {isTracking ? (isPaused ? "PAUSED" : "ACTIVE") : "STANDBY"}
             </p>
             <span className="flex items-center gap-1 text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20 uppercase tracking-tighter">
-              Drift_Filter_v3.1
+              Drift_Filter_v4.0_LIVE
             </span>
           </div>
         </div>
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border transition-all ${isVoiceEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400 shadow-lg shadow-cyan-500/10' : 'bg-slate-800 border-slate-700 text-slate-500'}`}
           >
@@ -356,11 +356,11 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="h-[480px] w-full bg-slate-950 border border-slate-800 rounded-[2rem] sm:rounded-[3.5rem] relative overflow-hidden shadow-2xl">
             {!mapBlocked ? (
-               <div ref={mapContainerRef} className="absolute inset-0 z-0 opacity-80" />
+              <div ref={mapContainerRef} className="absolute inset-0 z-0 opacity-80" />
             ) : (
-               <div className="absolute inset-0 bg-slate-900 bg-[linear-gradient(rgba(15,23,42,0.8)_2px,transparent_2px),linear-gradient(90deg,rgba(15,23,42,0.8)_2px,transparent_2px)] bg-[size:40px_40px]" />
+              <div className="absolute inset-0 bg-slate-900 bg-[linear-gradient(rgba(15,23,42,0.8)_2px,transparent_2px),linear-gradient(90deg,rgba(15,23,42,0.8)_2px,transparent_2px)] bg-[size:40px_40px]" />
             )}
-            
+
             <KinematicCanvas path={path} isTracking={isTracking} isBlocked={mapBlocked} />
 
             <div className="absolute top-6 left-6 sm:top-10 sm:left-10 z-20">
@@ -371,11 +371,11 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
             </div>
 
             {isTracking && !isPaused && !hasGpsFix && (
-               <div className="absolute bottom-6 left-6 z-20 flex items-center gap-2 bg-slate-950/90 border border-amber-500/20 px-3 py-1.5 rounded-xl text-[9px] font-black text-amber-500 uppercase tracking-widest animate-pulse backdrop-blur-md">
-                  <Satellite size={12} /> SECURING_SATELLITE_FIX...
-               </div>
+              <div className="absolute bottom-6 left-6 z-20 flex items-center gap-2 bg-slate-950/90 border border-amber-500/20 px-3 py-1.5 rounded-xl text-[9px] font-black text-amber-500 uppercase tracking-widest animate-pulse backdrop-blur-md">
+                <Satellite size={12} /> SECURING_SATELLITE_FIX...
+              </div>
             )}
-            
+
             {isPaused && (
               <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center z-30 pointer-events-none">
                 <div className="bg-amber-500/10 border border-amber-500/20 px-6 py-3 rounded-2xl flex items-center gap-3 animate-pulse">
@@ -386,7 +386,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
             )}
 
             {mapBlocked && !showErrorHelp && (
-              <button 
+              <button
                 onClick={() => setShowErrorHelp(true)}
                 className="absolute top-6 right-6 z-20 bg-slate-900/95 border border-amber-500/20 px-3 py-1.5 rounded-xl flex items-center gap-2 text-[9px] font-black text-amber-500 uppercase tracking-widest hover:bg-slate-800 transition-colors"
               >
@@ -396,8 +396,8 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
             {!isTracking && !path.length && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-[2px] pointer-events-none z-10">
-                 <LocateFixed className="w-12 h-12 sm:w-16 sm:h-16 text-slate-800 mb-4 animate-pulse" />
-                 <p className="font-black uppercase tracking-[0.6em] text-[9px] sm:text-[10px] text-slate-700">Awaiting_Movement_Signal</p>
+                <LocateFixed className="w-12 h-12 sm:w-16 sm:h-16 text-slate-800 mb-4 animate-pulse" />
+                <p className="font-black uppercase tracking-[0.6em] text-[9px] sm:text-[10px] text-slate-700">Awaiting_Movement_Signal</p>
               </div>
             )}
           </div>
@@ -418,7 +418,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
 
       <div className="w-full flex flex-col sm:flex-row gap-4 sm:gap-6 pt-4">
         {!isTracking ? (
-          <button 
+          <button
             onClick={startTracking}
             className="w-full py-8 sm:py-12 rounded-[2rem] sm:rounded-[4rem] font-black text-xl sm:text-4xl uppercase tracking-[0.2em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-6 sm:gap-10 border-b-[10px] sm:border-b-[16px] bg-cyan-600 hover:bg-cyan-500 border-cyan-800 shadow-cyan-900/40 text-white"
           >
@@ -428,7 +428,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         ) : (
           <div className="flex flex-col sm:flex-row w-full gap-4 sm:gap-6 animate-in slide-in-from-bottom-6 duration-500">
             {isPaused ? (
-              <button 
+              <button
                 onClick={resumeTracking}
                 className="flex-1 py-6 sm:py-10 rounded-[2rem] sm:rounded-[3rem] font-black text-lg sm:text-2xl uppercase tracking-[0.1em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-4 border-b-[8px] sm:border-b-[12px] bg-amber-600 hover:bg-amber-500 border-amber-800 shadow-amber-900/40 text-white"
               >
@@ -436,7 +436,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
                 Resume Session
               </button>
             ) : (
-              <button 
+              <button
                 onClick={pauseTracking}
                 className="flex-1 py-6 sm:py-10 rounded-[2rem] sm:rounded-[3rem] font-black text-lg sm:text-2xl uppercase tracking-[0.1em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-4 border-b-[8px] sm:border-b-[12px] bg-amber-600 hover:bg-amber-500 border-amber-800 shadow-amber-900/40 text-white"
               >
@@ -444,8 +444,8 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
                 Pause Session
               </button>
             )}
-            
-            <button 
+
+            <button
               onClick={stopTracking}
               className={`flex-1 py-6 sm:py-10 rounded-[2rem] sm:rounded-[3rem] font-black text-lg sm:text-2xl uppercase tracking-[0.1em] transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-4 border-b-[8px] sm:border-b-[12px] ${isPaused ? 'bg-white text-slate-900 border-slate-300' : 'bg-red-600 text-white border-red-800 shadow-red-900/40'}`}
             >

@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'velocity-v3-swr';
+const CACHE_NAME = 'velocity-v4-swr';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
