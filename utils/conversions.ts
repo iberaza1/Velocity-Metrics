@@ -1,4 +1,3 @@
-
 /**
  * VelocityMetrics Math Logic
  * US Customary System (Miles/Pounds)
@@ -20,12 +19,12 @@ export const formatDuration = (seconds: number): string => {
 };
 
 export const calculatePace = (distanceMi: number, durationSec: number): number => {
-  if (distanceMi === 0) return 0;
+  if (!distanceMi || distanceMi <= 0) return Infinity; // Better sentinel for pace
   return (durationSec / 60) / distanceMi;
 };
 
 export const formatPace = (paceMinMi: number): string => {
-  if (!paceMinMi || paceMinMi === Infinity) return "0:00";
+  if (!paceMinMi || paceMinMi === Infinity || isNaN(paceMinMi)) return "0:00";
   const mins = Math.floor(paceMinMi);
   const secs = Math.round((paceMinMi - mins) * 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -45,26 +44,41 @@ export const calculateDistanceBetween = (lat1: number, lng1: number, lat2: numbe
 
 /**
  * Enhanced Running Power Estimation (Watts)
+ * Simplified external mechanical power:
  * P = (m*g*(grade + Cr) + 0.5*rho*CdA*v^2) * v
+ * 
+ * Improvements:
+ * - Clamps to >= 0 (no negative power on downhills)
+ * - Added comments + slightly tuned constants for running
+ * - Input guards against NaN/negative velocity
  */
-export const estimatePower = (weightLbs: number, velocityMps: number, gradeDecimal: number): number => {
-  if (velocityMps <= 0) return 0;
+export const estimatePower = (
+  weightLbs: number, 
+  velocityMps: number, 
+  gradeDecimal: number
+): number => {
+  if (!velocityMps || velocityMps <= 0 || isNaN(velocityMps)) return 0;
   
   const massKg = weightLbs * LBS_TO_KG;
   const gravity = 9.81;
-  const rollingResCoeff = 0.01; // Average running economy factor
+  const rollingResCoeff = 0.015; // Tuned higher for running economy (was 0.01)
   const rho = 1.225; // Air density kg/m3
-  const cdA = 0.5; // Drag coeff * frontal area
+  const cdA = 0.35;  // More realistic runner CdA (was 0.5)
   
-  const forceGravity = massKg * gravity * gradeDecimal;
+  const grade = isNaN(gradeDecimal) ? 0 : gradeDecimal;
+  
+  const forceGravity = massKg * gravity * grade;
   const forceRolling = massKg * gravity * rollingResCoeff;
   const forceAir = 0.5 * rho * cdA * Math.pow(velocityMps, 2);
   
-  return (forceGravity + forceRolling + forceAir) * velocityMps;
+  const totalForce = forceGravity + forceRolling + forceAir;
+  const power = totalForce * velocityMps;
+  
+  return Math.max(0, power); // Prevent negative power
 };
 
 export const calculatePearsonR = (data: { x: number; y: number }[]): number => {
-  if (data.length < 2) return 0;
+  if (!data || data.length < 2) return 0;
   const n = data.length;
   let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
   for (const p of data) {
