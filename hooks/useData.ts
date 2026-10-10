@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, doc, onSnapshot, setDoc, addDoc, query, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, addDoc, query, orderBy, FirestoreError } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Run, UserGoals, BeerLog } from '../types';
 
@@ -17,6 +17,8 @@ export function useData() {
     const [beerLogs, setBeerLogs] = useState<BeerLog[]>([]);
     const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [retryKey, setRetryKey] = useState(0);
 
     useEffect(() => {
         if (!currentUser) {
@@ -27,6 +29,13 @@ export function useData() {
         }
 
         setLoading(true);
+        setError(null);
+
+        const handleError = (err: FirestoreError) => {
+            console.error('Firestore listener error:', err);
+            setError(err.code || 'unknown');
+            setLoading(false);
+        };
 
         // Sub to Runs
         const runsRef = collection(db, 'users', currentUser.uid, 'runs');
@@ -34,7 +43,7 @@ export function useData() {
         const unsubRuns = onSnapshot(qRuns, (snapshot) => {
             const fetchedRuns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Run));
             setRuns(fetchedRuns);
-        });
+        }, handleError);
 
         // Sub to Beer Logs
         const beerRef = collection(db, 'users', currentUser.uid, 'beerLogs');
@@ -42,7 +51,7 @@ export function useData() {
         const unsubBeer = onSnapshot(qBeer, (snapshot) => {
             const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BeerLog));
             setBeerLogs(fetchedLogs);
-        });
+        }, handleError);
 
         // Sub to Goals
         const goalsRef = doc(db, 'users', currentUser.uid, 'settings', 'goals');
@@ -51,17 +60,19 @@ export function useData() {
                 setGoals(docSnap.data() as UserGoals);
             } else {
                 // Initialize default goals if not exist
-                setDoc(goalsRef, DEFAULT_GOALS);
+                setDoc(goalsRef, DEFAULT_GOALS).catch(handleError);
             }
             setLoading(false);
-        });
+        }, handleError);
 
         return () => {
             unsubRuns();
             unsubBeer();
             unsubGoals();
         };
-    }, [currentUser]);
+    }, [currentUser, retryKey]);
+
+    const retry = () => setRetryKey(k => k + 1);
 
     const saveRun = async (run: Run) => {
         if (!currentUser) return;
@@ -81,7 +92,7 @@ export function useData() {
     const updateGoals = async (newGoals: UserGoals) => {
         if (!currentUser) return;
         const goalsRef = doc(db, 'users', currentUser.uid, 'settings', 'goals');
-        await updateDoc(goalsRef, newGoals as any);
+        await setDoc(goalsRef, newGoals, { merge: true });
     };
 
     return {
@@ -89,6 +100,8 @@ export function useData() {
         beerLogs,
         goals,
         loading,
+        error,
+        retry,
         saveRun,
         logBeer,
         updateGoals
