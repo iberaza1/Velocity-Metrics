@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, doc, onSnapshot, setDoc, addDoc, deleteDoc, query, orderBy, FirestoreError } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, addDoc, deleteDoc, updateDoc, query, orderBy, FirestoreError } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Run, UserGoals, BeerLog } from '../types';
 
@@ -41,7 +41,7 @@ export function useData() {
         const runsRef = collection(db, 'users', currentUser.uid, 'runs');
         const qRuns = query(runsRef, orderBy('date', 'desc'));
         const unsubRuns = onSnapshot(qRuns, (snapshot) => {
-            const fetchedRuns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Run));
+            const fetchedRuns = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Run));
             setRuns(fetchedRuns);
         }, handleError);
 
@@ -82,6 +82,18 @@ export function useData() {
         await setDoc(runRef, run);
     };
 
+    const deleteRun = async (id: string) => {
+        if (!currentUser || !id) return;
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'runs', id));
+    };
+
+    const updateRun = async (id: string, changes: Partial<Omit<Run, 'id'>>) => {
+        if (!currentUser || !id) return;
+        // Drop undefined values; Firestore rejects them
+        const clean = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
+        await updateDoc(doc(db, 'users', currentUser.uid, 'runs', id), clean);
+    };
+
     const logBeer = async (beer: Omit<BeerLog, 'id'>) => {
         if (!currentUser) return;
         const beerRef = collection(db, 'users', currentUser.uid, 'beerLogs');
@@ -108,6 +120,8 @@ export function useData() {
         error,
         retry,
         saveRun,
+        deleteRun,
+        updateRun,
         logBeer,
         removeBeerLog,
         updateGoals

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Brain, Zap, Loader2, AlertTriangle, Target, Activity, Droplets, ShieldCheck, Microscope, FlaskConical, Beaker, BarChart3, Binary, TrendingDown } from 'lucide-react';
 import { Run, AssessmentResponse, BeerLog, UserGoals } from '../types';
-import { GeminiService } from '../services/geminiService';
+import { GeminiService, CoachApiError } from '../services/geminiService';
 import { formatPace } from '../utils/conversions';
 
 const gemini = new GeminiService();
@@ -16,15 +16,28 @@ interface CoachProps {
 const Coach: React.FC<CoachProps> = ({ runs, beerLogs, goals }) => {
   const [loading, setLoading] = useState(false);
   const [assessment, setAssessment] = useState<AssessmentResponse | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const describeError = (err: unknown): string => {
+    if (err instanceof CoachApiError) {
+      if (err.status === 401 || err.status === 403) return "The AI coach is only available to the account owner. Sign in with the owner account and try again.";
+      if (err.status === 413) return "Too much data to analyze at once. Try again later.";
+      return "The AI coach is unavailable right now (server error). Please try again in a few minutes.";
+    }
+    if (err instanceof TypeError) return "Couldn't reach the server. Check your connection and try again.";
+    return "Something went wrong generating your analysis. Please try again.";
+  };
 
   const getAnalysis = async () => {
     if (runs.length === 0) return;
     setLoading(true);
+    setErrorMsg(null);
     try {
       const result = await gemini.analyzePerformance(runs, beerLogs, goals);
       setAssessment(result);
     } catch (err) {
       console.error(err);
+      setErrorMsg(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -66,6 +79,17 @@ const Coach: React.FC<CoachProps> = ({ runs, beerLogs, goals }) => {
         </div>
       ) : (
         <div className="space-y-10">
+          {errorMsg && !loading && (
+            <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-[2rem] flex items-start gap-4" role="alert">
+              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-red-400 font-black text-xs uppercase tracking-widest mb-1">Analysis Failed</p>
+                <p className="text-slate-400 text-sm">{errorMsg}</p>
+              </div>
+              <button onClick={() => setErrorMsg(null)} className="text-[10px] font-mono text-slate-500 hover:text-white uppercase tracking-widest">Dismiss</button>
+            </div>
+          )}
+
           {!assessment && !loading && (
             <button 
               onClick={getAnalysis}

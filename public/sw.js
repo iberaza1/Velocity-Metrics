@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'velocity-v4-swr';
+const CACHE_NAME = 'velocity-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -34,29 +34,47 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event: Stale-While-Revalidate Strategy
-// Serves from cache immediately for speed, then updates cache from network in background.
+// Fetch Event:
+// - Navigations / index.html: network-first so new deploys load right away; cache is the offline fallback.
+// - Other same-origin GETs: stale-while-revalidate (hashed /assets files never change).
+// - Cross-origin and /api requests are not intercepted.
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests and avoid chrome-extensions or non-http(s) schemes
-  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
+  const req = event.request;
+  if (req.method !== 'GET' || !req.url.startsWith('http')) return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
+  const isNavigation = req.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('/index.html');
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('./index.html').then((cached) => cached || Response.error()))
+    );
     return;
   }
 
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // Only cache successful standard responses
+      return cache.match(req).then((cachedResponse) => {
+        const fetchPromise = fetch(req).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            cache.put(event.request, networkResponse.clone());
+            cache.put(req, networkResponse.clone());
           }
           return networkResponse;
         }).catch((err) => {
           console.warn('[SW] Network fetch failed, relying on cache (if available):', err);
-          return cachedResponse;
+          return cachedResponse || Response.error();
         });
 
-        // Return the cached response if it exists, otherwise wait for the network
         return cachedResponse || fetchPromise;
       });
     })
