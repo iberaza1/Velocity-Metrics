@@ -149,6 +149,16 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     };
   }, []);
 
+  // If Maps fails after the map was created (e.g. gm_authFailure), drop the
+  // map instances so the KinematicCanvas fallback takes over cleanly.
+  useEffect(() => {
+    if (mapBlocked) {
+      googleMapRef.current = null;
+      markerRef.current = null;
+      polylineRef.current = null;
+    }
+  }, [mapBlocked]);
+
   const initMap = (lat: number, lng: number) => {
     if (!mapContainerRef.current || !(window as any).google || mapBlocked) return;
 
