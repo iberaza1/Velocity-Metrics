@@ -11,7 +11,12 @@ interface GoalsProps {
 
 const Goals: React.FC<GoalsProps> = ({ runs, goals, onUpdateGoals }) => {
   const [editing, setEditing] = useState(false);
-  const [tempGoals, setTempGoals] = useState(goals);
+  const toDraft = (g: UserGoals) => ({
+    weightLbs: String(g.weightLbs),
+    weeklyMi: String(g.weeklyMi),
+    monthlyMi: String(g.monthlyMi),
+  });
+  const [tempGoals, setTempGoals] = useState(toDraft(goals));
 
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -29,7 +34,15 @@ const Goals: React.FC<GoalsProps> = ({ runs, goals, onUpdateGoals }) => {
   const monthlyPercent = Math.min(100, (monthlyDistance / goals.monthlyMi) * 100);
 
   const handleSave = () => {
-    onUpdateGoals(tempGoals);
+    const parse = (v: string, fallback: number) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    onUpdateGoals({
+      weightLbs: parse(tempGoals.weightLbs, goals.weightLbs),
+      weeklyMi: parse(tempGoals.weeklyMi, goals.weeklyMi),
+      monthlyMi: parse(tempGoals.monthlyMi, goals.monthlyMi),
+    });
     setEditing(false);
   };
 
@@ -44,7 +57,7 @@ const Goals: React.FC<GoalsProps> = ({ runs, goals, onUpdateGoals }) => {
           </h2>
         </div>
         <button 
-          onClick={() => editing ? handleSave() : setEditing(true)}
+          onClick={() => { if (editing) { handleSave(); } else { setTempGoals(toDraft(goals)); setEditing(true); } }}
           className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
             editing ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
           }`}
@@ -140,8 +153,9 @@ const Goals: React.FC<GoalsProps> = ({ runs, goals, onUpdateGoals }) => {
                 <label className="text-[10px] text-slate-500 uppercase font-black ml-1 tracking-widest">Weight (lbs)</label>
                 <input 
                   type="number" 
+                  inputMode="decimal"
                   value={tempGoals.weightLbs}
-                  onChange={e => setTempGoals({ ...tempGoals, weightLbs: parseFloat(e.target.value) || 0 })}
+                  onChange={e => setTempGoals({ ...tempGoals, weightLbs: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xl font-mono font-black text-white focus:border-cyan-500 outline-none"
                 />
               </div>
@@ -149,8 +163,9 @@ const Goals: React.FC<GoalsProps> = ({ runs, goals, onUpdateGoals }) => {
                 <label className="text-[10px] text-slate-500 uppercase font-black ml-1 tracking-widest">Weekly Goal (mi)</label>
                 <input 
                   type="number" 
+                  inputMode="decimal"
                   value={tempGoals.weeklyMi}
-                  onChange={e => setTempGoals({ ...tempGoals, weeklyMi: parseFloat(e.target.value) || 0 })}
+                  onChange={e => setTempGoals({ ...tempGoals, weeklyMi: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xl font-mono font-black text-white focus:border-cyan-500 outline-none"
                 />
               </div>
@@ -158,8 +173,9 @@ const Goals: React.FC<GoalsProps> = ({ runs, goals, onUpdateGoals }) => {
                 <label className="text-[10px] text-slate-500 uppercase font-black ml-1 tracking-widest">Monthly Goal (mi)</label>
                 <input 
                   type="number" 
+                  inputMode="decimal"
                   value={tempGoals.monthlyMi}
-                  onChange={e => setTempGoals({ ...tempGoals, monthlyMi: parseFloat(e.target.value) || 0 })}
+                  onChange={e => setTempGoals({ ...tempGoals, monthlyMi: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xl font-mono font-black text-white focus:border-cyan-500 outline-none"
                 />
               </div>
