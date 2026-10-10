@@ -175,10 +175,43 @@ const MIME_TYPES = {
   '.jpg': 'image/jpg',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
-  '.tsx': 'text/plain',
-  '.ts': 'text/plain',
-  '.wasm': 'application/wasm'
+  '.wasm': 'application/wasm',
+  '.webmanifest': 'application/manifest+json',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2'
 };
+
+const DIST_ROOT = path.resolve(__dirname, 'dist');
+const INDEX_HTML = path.join(DIST_ROOT, 'index.html');
+
+function cacheHeaderFor(filePath) {
+  const rel = path.relative(DIST_ROOT, filePath).split(path.sep).join('/');
+  if (rel === 'index.html' || rel === 'sw.js' || rel === 'manifest.json') return 'no-cache';
+  if (rel.startsWith('assets/')) return 'public, max-age=31536000, immutable';
+  return 'public, max-age=3600';
+}
+
+function sendNotFound(res) {
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('Not found');
+}
+
+function sendFile(req, res, filePath) {
+  fs.readFile(filePath, (error, content) => {
+    if (error) {
+      res.writeHead(error.code === 'ENOENT' ? 404 : 500, { 'Content-Type': 'text/plain' });
+      res.end(error.code === 'ENOENT' ? 'Not found' : 'Server error');
+      return;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    res.writeHead(200, {
+      'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+      'Cache-Control': cacheHeaderFor(filePath),
+      'X-Content-Type-Options': 'nosniff'
+    });
+    res.end(req.method === 'HEAD' ? undefined : content);
+  });
+}
 
 const server = http.createServer((req, res) => {
   const urlPath = (req.url || '/').split('?')[0];
@@ -189,33 +222,39 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve from 'dist' directory
-  let filePath = path.join(__dirname, 'dist', req.url === '/' ? 'index.html' : req.url);
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    res.end();
+    return;
+  }
 
-  const extname = String(path.extname(filePath)).toLowerCase();
-  const contentType = MIME_TYPES[extname] || 'application/octet-stream';
+  let decoded;
+  try {
+    decoded = decodeURIComponent(urlPath);
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Bad request');
+    return;
+  }
+  if (decoded.includes('\0')) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Bad request');
+    return;
+  }
 
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      if (error.code === 'ENOENT') {
-        // SPA Fallback: Serve index.html for unknown paths
-        fs.readFile(path.join(__dirname, 'dist', 'index.html'), (err, indexContent) => {
-          if (err) {
-            res.writeHead(500);
-            res.end('Error loading index.html: ' + err.code);
-            return;
-          }
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(indexContent, 'utf-8');
-        });
-      } else {
-        res.writeHead(500);
-        res.end('Server Error: ' + error.code);
-      }
-    } else {
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content, 'utf-8');
+  const relPath = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
+  const filePath = path.resolve(DIST_ROOT, relPath);
+  if (filePath !== DIST_ROOT && !filePath.startsWith(DIST_ROOT + path.sep)) {
+    return sendNotFound(res);
+  }
+
+  fs.stat(filePath, (statErr, stats) => {
+    if (!statErr && stats.isFile()) {
+      return sendFile(req, res, filePath);
     }
+    // SPA fallback only for app routes (no file extension); missing files 404.
+    if (path.extname(relPath)) return sendNotFound(res);
+    sendFile(req, res, INDEX_HTML);
   });
 });
 

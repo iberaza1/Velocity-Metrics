@@ -7,7 +7,7 @@ import { MapService } from '../services/mapService';
 declare var google: any;
 
 interface TrackerProps {
-  onSaveRun: (run: Run) => void;
+  onSaveRun: (run: Run) => void | Promise<void>;
   userWeightLbs: number;
 }
 
@@ -234,7 +234,8 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         if (accuracy > 25) return;
 
         setHasGpsFix(true);
-        const newCoord: Coordinate = { lat, lng, elevation: altitude ?? undefined };
+        // Firestore rejects undefined values, so only include elevation when known
+        const newCoord: Coordinate = altitude != null ? { lat, lng, elevation: altitude } : { lat, lng };
 
         if (lastCoordRef.current) {
           const distMi = calculateDistanceBetween(lastCoordRef.current.lat, lastCoordRef.current.lng, lat, lng);
@@ -294,7 +295,7 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
     initiateHardwareWatch();
   };
 
-  const stopTracking = () => {
+  const stopTracking = async () => {
     if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     if (timerId.current !== null) clearInterval(timerId.current);
 
@@ -311,16 +312,21 @@ const Tracker: React.FC<TrackerProps> = ({ onSaveRun, userWeightLbs }) => {
         ? powersRef.current.reduce((a, b) => a + b, 0) / powersRef.current.length
         : 0;
 
-      onSaveRun({
-        id: `run-${Date.now()}`,
-        date: new Date().toISOString(),
-        distanceMi: finalDistance,
-        durationSec: finalDuration,
-        paceMinMi: calculatePace(finalDistance, finalDuration),
-        avgPowerWatts: avgPower,
-        totalAscentFt: totalAscent,
-        path: finalPath
-      });
+      try {
+        await onSaveRun({
+          id: `run-${Date.now()}`,
+          date: new Date().toISOString(),
+          distanceMi: finalDistance,
+          durationSec: finalDuration,
+          paceMinMi: calculatePace(finalDistance, finalDuration),
+          avgPowerWatts: avgPower,
+          totalAscentFt: totalAscent,
+          path: finalPath
+        });
+      } catch (err) {
+        console.error('Failed to save run:', err);
+        window.alert('Could not save this run. Check your connection and try again.');
+      }
     }
   };
 
