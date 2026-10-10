@@ -3,6 +3,15 @@ import { auth } from "./firebase";
 import { Run, BeerLog, AssessmentResponse, UserGoals } from "../types";
 import { calculatePearsonR } from "../utils/conversions";
 
+export class CoachApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "CoachApiError";
+    this.status = status;
+  }
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Not signed in");
@@ -15,7 +24,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try { const data = await res.json(); if (data?.error) msg = data.error; } catch { /* ignore */ }
-    throw new Error(msg);
+    throw new CoachApiError(msg, res.status);
   }
   return res.json() as Promise<T>;
 }

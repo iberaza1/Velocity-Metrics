@@ -15,7 +15,7 @@ import { isOwner } from './services/owner';
 
 function AuthenticatedApp() {
   const { currentUser } = useAuth();
-  const { runs, goals, beerLogs, saveRun, updateGoals, logBeer, removeBeerLog, loading, error, retry } = useData();
+  const { runs, goals, beerLogs, saveRun, deleteRun, updateRun, updateGoals, logBeer, removeBeerLog, loading, error, retry } = useData();
 
   if (loading) {
     return (
@@ -47,7 +47,7 @@ function AuthenticatedApp() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Tracker onSaveRun={saveRun} userWeightLbs={goals.weightLbs} />} />
-        <Route path="/dashboard" element={<Dashboard runs={runs} />} />
+        <Route path="/dashboard" element={<Dashboard runs={runs} onDeleteRun={deleteRun} onUpdateRun={updateRun} />} />
         <Route path="/goals" element={<Goals runs={runs} goals={goals} onUpdateGoals={updateGoals} />} />
         {isOwner(currentUser?.email) && (
           <Route path="/coach" element={<Coach runs={runs} beerLogs={beerLogs} goals={goals} />} />

@@ -1,15 +1,51 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity, Zap, History, ChevronRight, Ruler, Clock, TrendingUp, Gauge, Target, MoveUp } from 'lucide-react';
+import { Activity, Zap, History, Ruler, Clock, TrendingUp, Gauge, Target, MoveUp, Pencil, Trash2, Check, X } from 'lucide-react';
 import { Run } from '../types';
 import { formatDuration, formatPace, calculatePace } from '../utils/conversions';
 
 interface DashboardProps {
   runs: Run[];
+  onDeleteRun: (id: string) => Promise<void>;
+  onUpdateRun: (id: string, changes: Partial<Omit<Run, 'id'>>) => Promise<void>;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ runs }) => {
+const Dashboard: React.FC<DashboardProps> = ({ runs, onDeleteRun, onUpdateRun }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftDistance, setDraftDistance] = useState('');
+  const [draftMinutes, setDraftMinutes] = useState('');
+
+  const startEdit = (run: Run) => {
+    setEditingId(run.id);
+    setDraftDistance(run.distanceMi.toFixed(2));
+    setDraftMinutes((run.durationSec / 60).toFixed(1));
+  };
+
+  const saveEdit = async (run: Run) => {
+    const dist = parseFloat(draftDistance);
+    const mins = parseFloat(draftMinutes);
+    const distanceMi = Number.isFinite(dist) && dist > 0 ? dist : run.distanceMi;
+    const durationSec = Number.isFinite(mins) && mins > 0 ? Math.round(mins * 60) : run.durationSec;
+    try {
+      await onUpdateRun(run.id, { distanceMi, durationSec, paceMinMi: calculatePace(distanceMi, durationSec) });
+      setEditingId(null);
+    } catch (err) {
+      console.error('Failed to update run:', err);
+      window.alert('Could not update this run. Please try again.');
+    }
+  };
+
+  const removeRun = async (run: Run) => {
+    if (!window.confirm(`Delete the ${run.distanceMi.toFixed(2)} mi run from ${new Date(run.date).toLocaleDateString()}?`)) return;
+    try {
+      await onDeleteRun(run.id);
+    } catch (err) {
+      console.error('Failed to delete run:', err);
+      window.alert('Could not delete this run. Please try again.');
+    }
+  };
+
   const currentYear = new Date().getFullYear();
   
   const ytdMileage = runs
@@ -135,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ runs }) => {
         {runs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {runs.map((run) => (
-              <div key={run.id} className="bg-slate-800/10 border border-slate-800/40 hover:border-cyan-500/30 transition-all p-5 rounded-[2rem] group flex items-center gap-4 active:scale-[0.98] backdrop-blur-sm">
+              <div key={run.id} className="bg-slate-800/10 border border-slate-800/40 hover:border-cyan-500/30 transition-all p-5 rounded-[2rem] group flex items-center gap-4 backdrop-blur-sm">
                 <div className="w-16 h-16 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col items-center justify-center shrink-0 shadow-lg group-hover:border-cyan-500/50">
                    <span className="text-[10px] font-black text-slate-500 uppercase">{new Date(run.date).toLocaleDateString('en-US', { month: 'short' })}</span>
                    <span className="text-xl font-black text-white leading-tight">{new Date(run.date).getDate()}</span>
@@ -145,7 +181,35 @@ const Dashboard: React.FC<DashboardProps> = ({ runs }) => {
                     <span className="text-xs font-black text-white uppercase tracking-tighter">Session {run.id.slice(-4)}</span>
                     <span className="text-[8px] bg-indigo-500/10 text-indigo-500 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-indigo-500/20">Kinematic</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px]">
+                  {editingId === run.id ? (
+                    <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                      <label className="flex items-center gap-1 text-slate-400">
+                        <Ruler className="w-3 h-3 text-cyan-400" />
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={draftDistance}
+                          onChange={e => setDraftDistance(e.target.value)}
+                          className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 font-mono text-white focus:border-cyan-500 outline-none"
+                          aria-label="Distance in miles"
+                        />
+                        <span>mi</span>
+                      </label>
+                      <label className="flex items-center gap-1 text-slate-400">
+                        <Clock className="w-3 h-3 text-emerald-400" />
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={draftMinutes}
+                          onChange={e => setDraftMinutes(e.target.value)}
+                          className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 font-mono text-white focus:border-cyan-500 outline-none"
+                          aria-label="Duration in minutes"
+                        />
+                        <span>min</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px]">
                     <div className="flex items-center gap-1 text-slate-400">
                       <Ruler className="w-3 h-3 text-cyan-400" />
                       <span className="font-mono text-white">{run.distanceMi.toFixed(2)}mi</span>
@@ -161,10 +225,31 @@ const Dashboard: React.FC<DashboardProps> = ({ runs }) => {
                     <div className="flex items-center gap-1 text-slate-400">
                       <MoveUp className="w-3 h-3 text-emerald-400" />
                       <span className="font-mono text-white">{Math.round(run.totalAscentFt || 0)}ft</span>
-                    </div>
+                      </div>
                   </div>
+                  )}
                 </div>
-                <ChevronRight className="text-slate-700 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all w-5 h-5" />
+                <div className="flex items-center gap-1 shrink-0">
+                  {editingId === run.id ? (
+                    <>
+                      <button onClick={() => saveEdit(run)} className="p-2 text-slate-500 hover:text-emerald-400 rounded-xl transition-all hover:bg-emerald-500/10" aria-label="Save run">
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="p-2 text-slate-500 hover:text-white rounded-xl transition-all hover:bg-white/5" aria-label="Cancel edit">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEdit(run)} className="p-2 text-slate-700 hover:text-cyan-400 rounded-xl transition-all hover:bg-cyan-500/10" aria-label="Edit run">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => removeRun(run)} className="p-2 text-slate-700 hover:text-red-400 rounded-xl transition-all hover:bg-red-500/10" aria-label="Delete run">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
