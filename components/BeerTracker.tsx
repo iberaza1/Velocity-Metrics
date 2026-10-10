@@ -32,7 +32,8 @@ const BEER_LIBRARY = {
   "Budweiser": { abv: 5.0, kcal: 145, carbs: 10.6 },
   "Sierra Nevada IPA": { abv: 6.7, kcal: 210, carbs: 18.0 },
   "Sculpin IPA": { abv: 7.0, kcal: 210, carbs: 18.0 },
-  "Imperial IPA": { abv: 8.5, kcal: 280, carbs: 22.0 }
+  "Imperial IPA": { abv: 8.5, kcal: 280, carbs: 22.0 },
+  "Boulevard Unfiltered Wheat": { abv: 4.4, kcal: 150, carbs: 15.0 }
 };
 
 const BeerPerformanceChart: React.FC<{ data: any[] }> = ({ data }) => {
