@@ -15,7 +15,7 @@ interface BeerTrackerProps {
   logs: BeerLog[];
   runs: Run[];
   onAddLog: (log: BeerLog) => void;
-  onRemoveLog: (id: string) => void;
+  onRemoveLog: (id: string) => void | Promise<void>;
 }
 
 // 1. DATA CONSTANTS: Standardized for Business Analytics
@@ -341,7 +341,15 @@ const BeerTracker: React.FC<BeerTrackerProps> = ({ logs, runs, onAddLog, onRemov
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${log.timing === 'day_before' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} title={log.timing} />
                   <button
-                    onClick={() => onRemoveLog(log.id)}
+                    onClick={async () => {
+                      if (!window.confirm(`Delete "${log.name}" from your beer log?`)) return;
+                      try {
+                        await onRemoveLog(log.id);
+                      } catch (err) {
+                        console.error('Failed to delete beer log:', err);
+                        window.alert('Could not delete this entry. Please try again.');
+                      }
+                    }}
                     className="p-3 text-slate-700 hover:text-red-400 rounded-xl transition-all hover:bg-red-500/10"
                     aria-label="Remove entry"
                   >

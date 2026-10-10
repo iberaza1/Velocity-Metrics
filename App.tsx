@@ -15,7 +15,7 @@ import { isOwner } from './services/owner';
 
 function AuthenticatedApp() {
   const { currentUser } = useAuth();
-  const { runs, goals, beerLogs, saveRun, updateGoals, logBeer, loading, error, retry } = useData();
+  const { runs, goals, beerLogs, saveRun, updateGoals, logBeer, removeBeerLog, loading, error, retry } = useData();
 
   if (loading) {
     return (
@@ -52,7 +52,7 @@ function AuthenticatedApp() {
         {isOwner(currentUser?.email) && (
           <Route path="/coach" element={<Coach runs={runs} beerLogs={beerLogs} goals={goals} />} />
         )}
-        <Route path="/beer" element={<BeerTracker logs={beerLogs} runs={runs} onAddLog={logBeer} onRemoveLog={() => { }} />} />
+        <Route path="/beer" element={<BeerTracker logs={beerLogs} runs={runs} onAddLog={logBeer} onRemoveLog={removeBeerLog} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
