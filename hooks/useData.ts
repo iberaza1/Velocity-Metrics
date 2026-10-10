@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, doc, onSnapshot, setDoc, addDoc, query, orderBy, FirestoreError } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, addDoc, deleteDoc, query, orderBy, FirestoreError } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Run, UserGoals, BeerLog } from '../types';
 
@@ -49,7 +49,7 @@ export function useData() {
         const beerRef = collection(db, 'users', currentUser.uid, 'beerLogs');
         const qBeer = query(beerRef, orderBy('date', 'desc'));
         const unsubBeer = onSnapshot(qBeer, (snapshot) => {
-            const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BeerLog));
+            const fetchedLogs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BeerLog));
             setBeerLogs(fetchedLogs);
         }, handleError);
 
@@ -89,6 +89,11 @@ export function useData() {
         await addDoc(beerRef, beer);
     };
 
+    const removeBeerLog = async (id: string) => {
+        if (!currentUser || !id) return;
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'beerLogs', id));
+    };
+
     const updateGoals = async (newGoals: UserGoals) => {
         if (!currentUser) return;
         const goalsRef = doc(db, 'users', currentUser.uid, 'settings', 'goals');
@@ -104,6 +109,7 @@ export function useData() {
         retry,
         saveRun,
         logBeer,
+        removeBeerLog,
         updateGoals
     };
 }
