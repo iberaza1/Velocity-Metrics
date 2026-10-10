@@ -1,7 +1,24 @@
 
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { auth } from "./firebase";
 import { Run, BeerLog, AssessmentResponse, UserGoals } from "../types";
 import { calculatePearsonR } from "../utils/conversions";
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const idToken = await user.getIdToken();
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try { const data = await res.json(); if (data?.error) msg = data.error; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<T>;
+}
 
 export class GeminiService {
   /**
@@ -9,8 +26,6 @@ export class GeminiService {
    * Specializing in Sports Data Science & Metabolic Modeling
    */
   async analyzePerformance(history: Run[], beerHistory: BeerLog[], goals: UserGoals): Promise<AssessmentResponse> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
     // Mathematical Pre-Processing for Context
     const correlationData = history.map(run => {
       const runDate = new Date(run.date);
@@ -50,80 +65,12 @@ export class GeminiService {
       }
     };
 
-    const systemInstruction = `Role: Senior Sports Data Scientist.
-Objective: Analyze performance data for a high-level runner with a Physics background.
-
-Scientific Models:
-1. BANISTER IMPULSE-RESPONSE: Calculate TRIMP (Training Impulse) from distance and power.
-2. WIDMARK MODEL: Analyze ethanol clearance vs. performance decay ( cardiac drift).
-3. EFFICIENCY FACTOR (EF): Evaluate Pace/Watts as a measure of metabolic economy.
-
-Output Requirements:
-Return a valid JSON object with the following sections:
-- THE KINEMATIC UPDATE: Summary of cumulative impulse and mechanical power output.
-- THE BEER-PERFORMANCE MATRIX: Summary of how recent consumption is impacting pace variance (independent: beer, dependent: pace).
-- THE ACTION PLAN: Data-backed recommendations for the next run.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: `Execute biophysical audit: ${JSON.stringify(inputData)}`,
-      config: {
-        systemInstruction,
-        thinkingConfig: { thinkingBudget: 24000 },
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            summary_metrics: {
-              type: Type.OBJECT,
-              properties: {
-                rolling_avg_pace: { type: Type.NUMBER },
-                correlation_coefficient: { type: Type.NUMBER },
-                metabolic_tax_estimate: { type: Type.NUMBER },
-                efficiency_factor: { type: Type.NUMBER },
-                mechanical_output_avg: { type: Type.NUMBER }
-              },
-              required: ["rolling_avg_pace", "correlation_coefficient", "metabolic_tax_estimate", "efficiency_factor", "mechanical_output_avg"]
-            },
-            executive_summary: {
-              type: Type.OBJECT,
-              properties: {
-                kinematic_update: { type: Type.STRING },
-                beer_performance_matrix: { type: Type.STRING },
-                action_plan: { type: Type.STRING }
-              },
-              required: ["kinematic_update", "beer_performance_matrix", "action_plan"]
-            },
-            status: { 
-              type: Type.STRING, 
-              enum: ['Peaking', 'Overtraining', 'Plateau', 'Improving', 'Recovery']
-            },
-            anomalies: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["summary_metrics", "executive_summary", "status", "anomalies"]
-        }
-      }
-    });
-
-    return JSON.parse(response.text);
+    return postJson<AssessmentResponse>('/api/coach/analyze', { inputData });
   }
 
   async generatePerformanceSpeech(distance: number, pace: string, time: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Report: ${distance.toFixed(2)} miles. Pace: ${pace}. Time: ${time}. Professional tone.`;
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: prompt }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-      },
-    });
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) throw new Error("Audio generation failed");
-    return base64Audio;
+    const { audio } = await postJson<{ audio: string }>('/api/coach/speech', { distance, pace, time });
+    if (!audio) throw new Error("Audio generation failed");
+    return audio;
   }
 }

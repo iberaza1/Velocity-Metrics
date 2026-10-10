@@ -3,9 +3,10 @@ import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Compass, BarChart3, Target, Brain, Beer, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { isOwner } from '../services/owner';
 
 const Layout: React.FC = () => {
-    const { logout } = useAuth();
+    const { logout, currentUser } = useAuth();
     const location = useLocation();
 
     const navItems = [
@@ -14,7 +15,7 @@ const Layout: React.FC = () => {
         { path: '/goals', icon: <Target />, label: 'GOALS' },
         { path: '/coach', icon: <Brain />, label: 'COACH' },
         { path: '/beer', icon: <Beer />, label: 'BEER LOG' }
-    ];
+    ].filter(item => item.path !== '/coach' || isOwner(currentUser?.email));
 
     return (
         <div className="flex h-screen bg-[#0a0a0a] text-white overflow-hidden font-sans selection:bg-cyan-500/30">

@@ -10,8 +10,11 @@ import Goals from './components/Goals';
 import Coach from './components/Coach';
 import BeerTracker from './components/BeerTracker';
 import { useData } from './hooks/useData';
+import { useAuth } from './contexts/AuthContext';
+import { isOwner } from './services/owner';
 
 function AuthenticatedApp() {
+  const { currentUser } = useAuth();
   const { runs, goals, beerLogs, saveRun, updateGoals, logBeer, loading, error, retry } = useData();
 
   if (loading) {
@@ -46,7 +49,9 @@ function AuthenticatedApp() {
         <Route path="/" element={<Tracker onSaveRun={saveRun} userWeightLbs={goals.weightLbs} />} />
         <Route path="/dashboard" element={<Dashboard runs={runs} />} />
         <Route path="/goals" element={<Goals runs={runs} goals={goals} onUpdateGoals={updateGoals} />} />
-        <Route path="/coach" element={<Coach runs={runs} beerLogs={beerLogs} goals={goals} />} />
+        {isOwner(currentUser?.email) && (
+          <Route path="/coach" element={<Coach runs={runs} beerLogs={beerLogs} goals={goals} />} />
+        )}
         <Route path="/beer" element={<BeerTracker logs={beerLogs} runs={runs} onAddLog={logBeer} onRemoveLog={() => { }} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

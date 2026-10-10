@@ -13,9 +13,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js .
 COPY --from=builder /app/package*.json ./
 
-# Install production dependencies only (if any are needed for server.js)
-# Since server.js only uses built-in modules, we don't technically need npm install here,
-# but it's good practice to have the environment ready.
+# server.js needs firebase-admin and @google/genai at runtime.
+# GEMINI_API_KEY is provided by Cloud Run at runtime, never at build time.
+RUN npm ci --omit=dev
 ENV PORT=8080
 EXPOSE 8080
 CMD ["node", "server.js"]
